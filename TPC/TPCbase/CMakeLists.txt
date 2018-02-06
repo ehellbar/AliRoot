@@ -110,13 +110,13 @@ set(SRCS
     AliTransform.cxx
     AliXRDPROOFtoolkit.cxx
     AliTPCSAMPAEmulator.cxx
-        AliTPC3DCylindricalInterpolator.cxx
-        AliTPC3DCylindricalInterpolatorIrregular.cxx
-        AliTPCLookUpTable3DInterpolatorD.cxx
-        AliTPCLookUpTable3DInterpolatorIrregularD.cxx
-        AliTPCPoissonSolver.cxx
-        AliTPCSpaceCharge3DDriftLine.cxx
-   )
+    AliTPC3DCylindricalInterpolator.cxx
+    AliTPC3DCylindricalInterpolatorIrregular.cxx
+    AliTPCLookUpTable3DInterpolatorD.cxx
+    AliTPCLookUpTable3DInterpolatorIrregularD.cxx
+    AliTPCPoissonSolver.cxx
+    AliTPCSpaceCharge3DCalc.cxx
+    AliTPCSpaceCharge3DDriftLine.cxx)
 
 # Headers from sources
 string(REPLACE ".cxx" ".h" HDRS "${SRCS}")

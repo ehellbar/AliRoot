@@ -24,7 +24,6 @@
 /// \date Nov 20, 2017
 
 #include <TMath.h>
-#include "AliLog.h"
 #include <AliSysInfo.h>
 #include "AliTPCPoissonSolver.h"
 
@@ -180,12 +179,12 @@ void AliTPCPoissonSolver::PoissonRelaxation2D(TMatrixD &matrixV, TMatrixD &matri
   //Check that number of nRRow and nZColumn is suitable for a binary expansion
 
   if (!IsPowerOfTwo(nRRow - 1)) {
-    AliError("PoissonRelaxation - Error in the number of nRRow. Must be 2**M - 1");
+    Error("PoissonRelaxation2D","PoissonRelaxation - Error in the number of nRRow. Must be 2**M - 1");
     return;
   }
 
   if (!IsPowerOfTwo(nZColumn - 1)) {
-    AliError("PoissonRelaxation - Error in the number of nZColumn. Must be 2**N - 1");
+    Error("PoissonRelaxation2D","PoissonRelaxation - Error in the number of nZColumn. Must be 2**N - 1");
     return;
   }
 
@@ -336,17 +335,17 @@ void AliTPCPoissonSolver::PoissonMultiGrid2D(TMatrixD &matrixV, TMatrixD &matrix
 
   //Check that number of nRRow and nZColumn is suitable for multi grid
   if (!IsPowerOfTwo(nRRow - 1)) {
-    AliError("PoissonMultiGrid - Error in the number of nRRow. Must be 2**M - 1");
+    Error("PoissonMultiGrid2D","PoissonMultiGrid - Error in the number of nRRow. Must be 2**M - 1");
     return;
   }
   if (!IsPowerOfTwo(nZColumn - 1)) {
-    AliError("PoissonMultiGrid - Error in the number of nZColumn. Must be 2**N - 1");
+    Error("PoissonMultiGrid2D","PoissonMultiGrid - Error in the number of nZColumn. Must be 2**N - 1");
     return;
   }
 
   Int_t nLoop = TMath::Max(nGridRow, nGridCol);      // Calculate the number of nLoop for the binary expansion
 
-  AliInfo(Form("nGridRow=%d, nGridCol=%d, nLoop=%d, nMGCycle=%d", nGridRow, nGridCol, nLoop,
+  Info("PoissonMultiGrid2D",Form("nGridRow=%d, nGridCol=%d, nLoop=%d, nMGCycle=%d", nGridRow, nGridCol, nLoop,
                fMgParameters.nMGCycle));
 
   Float_t h, h2, radius;
@@ -386,7 +385,7 @@ void AliTPCPoissonSolver::PoissonMultiGrid2D(TMatrixD &matrixV, TMatrixD &matrix
   /// full multi grid
   if (fMgParameters.cycleType == kFCycle) {
 
-    AliInfo(Form("Do full cycle"));
+    Info("PoissonMultiGrid2D","Do full cycle");
     // FMG
     // 1) Relax on the coarsest grid
     iOne = iOne / 2;
@@ -434,7 +433,7 @@ void AliTPCPoissonSolver::PoissonMultiGrid2D(TMatrixD &matrixV, TMatrixD &matrix
     }
   } else if (fMgParameters.cycleType == kVCycle) {
     // 2. VCycle
-    AliInfo(Form("Do V cycle"));
+    Info("PoissonMultiGrid2D","Do V cycle");
 
     Int_t gridFrom = 1;
     Int_t gridTo = nLoop;
@@ -510,22 +509,22 @@ void AliTPCPoissonSolver::PoissonRelaxation3D(TMatrixD **matricesV, TMatrixD **m
   const Float_t ratioPhi = gridSizeR * gridSizeR / (gridSizePhi * gridSizePhi);
   const Float_t ratioZ = gridSizeR * gridSizeR / (gridSizeZ * gridSizeZ);
 
-  AliInfo(Form("in Poisson Solver 3D relaxation nRRow=%d, cols=%d, phiSlice=%d \n", nRRow, nZColumn, phiSlice));
+  Info("PoissonRelaxation3D",Form("in Poisson Solver 3D relaxation nRRow=%d, cols=%d, phiSlice=%d \n", nRRow, nZColumn, phiSlice));
   // Check that the number of nRRow and nZColumn is suitable for a binary expansion
   if (!IsPowerOfTwo((nRRow - 1))) {
-    AliError("Poisson3DRelaxation - Error in the number of nRRow. Must be 2**M - 1");
+    Error("PoissonRelaxation3D","Poisson3DRelaxation - Error in the number of nRRow. Must be 2**M - 1");
     return;
   }
   if (!IsPowerOfTwo((nZColumn - 1))) {
-    AliError("Poisson3DRelaxation - Error in the number of nZColumn. Must be 2**N - 1");
+    Error("PoissonRelaxation3D","Poisson3DRelaxation - Error in the number of nZColumn. Must be 2**N - 1");
     return;
   }
   if (phiSlice <= 3) {
-    AliError("Poisson3DRelaxation - Error in the number of phiSlice. Must be larger than 3");
+    Error("PoissonRelaxation3D","Poisson3DRelaxation - Error in the number of phiSlice. Must be larger than 3");
     return;
   }
   if (phiSlice > 1000) {
-    AliError("Poisson3D  phiSlice > 1000 is not allowed (nor wise) ");
+    Error("PoissonRelaxation3D","Poisson3D  phiSlice > 1000 is not allowed (nor wise) ");
     return;
   }
 
@@ -723,11 +722,11 @@ void AliTPCPoissonSolver::PoissonRelaxation3D(TMatrixD **matricesV, TMatrixD **m
         // if error already achieved then stop mg iteration
         fIterations = k - 1;
         if ((*fErrorConvergenceNormInf)(k - 1) <= fgConvergenceError) {
-          AliInfo(Form("Exact Err: %f, Iteration : %d", (*fError)(k - 1), k - 1));
+          Info("PoissonRelaxation3D",Form("Exact Err: %f, Iteration : %d", (*fError)(k - 1), k - 1));
           break;
         }
         if (k == maxIteration) {
-          AliInfo(Form("Exact Err: %f, Iteration : %d", (*fError)(k - 1), k - 1));
+          Info("PoissonRelaxation3D",Form("Exact Err: %f, Iteration : %d", (*fError)(k - 1), k - 1));
         }
       }
     }
@@ -791,24 +790,24 @@ void AliTPCPoissonSolver::PoissonMultiGrid3D2D(TMatrixD **matricesV, TMatrixD **
   //const Float_t  ERR = 1e-8;
   Double_t convergenceError;
 
-  AliInfo(Form("in Poisson Solver 3D multiGrid semi coarsening nRRow=%d, cols=%d, phiSlice=%d \n", nRRow, nZColumn,
+  Info("PoissonMultiGrid3D2D",Form("in Poisson Solver 3D multiGrid semi coarsening nRRow=%d, cols=%d, phiSlice=%d \n", nRRow, nZColumn,
                phiSlice));
 
   // Check that the number of nRRow and nZColumn is suitable for a binary expansion
   if (!IsPowerOfTwo((nRRow - 1))) {
-    AliError("Poisson3DMultiGrid - Error in the number of nRRow. Must be 2**M + 1");
+    Error("PoissonMultiGrid3D2D","Poisson3DMultiGrid - Error in the number of nRRow. Must be 2**M + 1");
     return;
   }
   if (!IsPowerOfTwo((nZColumn - 1))) {
-    AliError("Poisson3DMultiGrid - Error in the number of nZColumn. Must be 2**N - 1");
+    Error("PoissonMultiGrid3D2D","Poisson3DMultiGrid - Error in the number of nZColumn. Must be 2**N - 1");
     return;
   }
   if (phiSlice <= 3) {
-    AliError("Poisson3DMultiGrid - Error in the number of phiSlice. Must be larger than 3");
+    Error("PoissonMultiGrid3D2D","Poisson3DMultiGrid - Error in the number of phiSlice. Must be larger than 3");
     return;
   }
   if (phiSlice > 1000) {
-    AliError("Poisson3D  phiSlice > 1000 is not allowed (nor wise) ");
+    Error("PoissonMultiGrid3D2D","Poisson3D  phiSlice > 1000 is not allowed (nor wise) ");
     return;
   }
 
@@ -1027,24 +1026,24 @@ void AliTPCPoissonSolver::PoissonMultiGrid3D(TMatrixD **matricesV, TMatrixD **ma
 
   Float_t convergenceError; // Convergence error
 
-  AliInfo(Form("in Poisson Solver 3D multi grid full coarsening  nRRow=%d, cols=%d, phiSlice=%d \n", nRRow, nZColumn,
+  Info("PoissonMultiGrid3D",Form("in Poisson Solver 3D multi grid full coarsening  nRRow=%d, cols=%d, phiSlice=%d \n", nRRow, nZColumn,
                phiSlice));
 
   // Check that the number of nRRow and nZColumn is suitable for a binary expansion
   if (!IsPowerOfTwo((nRRow - 1))) {
-    AliError("Poisson3DMultiGrid - Error in the number of nRRow. Must be 2**M + 1");
+    Error("PoissonMultiGrid3D","Poisson3DMultiGrid - Error in the number of nRRow. Must be 2**M + 1");
     return;
   }
   if (!IsPowerOfTwo((nZColumn - 1))) {
-    AliError("Poisson3DMultiGrid - Error in the number of nZColumn. Must be 2**N - 1");
+    Error("PoissonMultiGrid3D","Poisson3DMultiGrid - Error in the number of nZColumn. Must be 2**N - 1");
     return;
   }
   if (phiSlice <= 3) {
-    AliError("Poisson3DMultiGrid - Error in the number of phiSlice. Must be larger than 3");
+    Error("PoissonMultiGrid3D","Poisson3DMultiGrid - Error in the number of phiSlice. Must be larger than 3");
     return;
   }
   if (phiSlice > 1000) {
-    AliError("Poisson3D  phiSlice > 1000 is not allowed (nor wise) ");
+    Error("PoissonMultiGrid3D","Poisson3D  phiSlice > 1000 is not allowed (nor wise) ");
     return;
   }
 
@@ -1072,7 +1071,7 @@ void AliTPCPoissonSolver::PoissonMultiGrid3D(TMatrixD **matricesV, TMatrixD **ma
     nnPhi /= 2;
   }
 
-  AliInfo(Form("nGridRow=%d, nGridCol=%d, nGridPhi=%d", nGridRow, nGridCol, nGridPhi));
+  Info("PoissonMultiGrid3D",Form("nGridRow=%d, nGridCol=%d, nGridPhi=%d", nGridRow, nGridCol, nGridPhi));
   Int_t nLoop = TMath::Max(nGridRow, nGridCol);      // Calculate the number of nLoop for the binary expansion
   nLoop = TMath::Max(nLoop, nGridPhi);
 
@@ -1159,7 +1158,7 @@ void AliTPCPoissonSolver::PoissonMultiGrid3D(TMatrixD **matricesV, TMatrixD **ma
       tPhiSlice = kOne == 1 ? phiSlice : phiSlice / kOne;
       tPhiSlice = tPhiSlice < nnPhi ? nnPhi : tPhiSlice;
 
-      AliInfo(Form("Restrict3D, tnRRow=%d, tnZColumn=%d, newPhiSlice=%d, oldPhiSlice=%d\n", tnRRow, tnZColumn,
+      Info("PoissonMultiGrid3D",Form("Restrict3D, tnRRow=%d, tnZColumn=%d, newPhiSlice=%d, oldPhiSlice=%d\n", tnRRow, tnZColumn,
                    tPhiSlice, otPhiSlice));
       Restrict3D(tvChargeFMG[count - 1], tvChargeFMG[count - 2], tnRRow, tnZColumn, tPhiSlice, otPhiSlice);
       // copy boundary values of V
@@ -1276,7 +1275,7 @@ void AliTPCPoissonSolver::PoissonMultiGrid3D(TMatrixD **matricesV, TMatrixD **ma
       (*fError)(mgCycle) = GetExactError(matricesV, tvPrevArrayV[0], phiSlice);
       // if error already achieved then stop mg iteration
       if (convergenceError <= fgConvergenceError) {
-        //AliInfo(Form("Exact Err: %f, MG Iteration : %d", (*fError)(mgCycle), mgCycle));
+        //Info("PoissonMultiGrid3D",Form("Exact Err: %f, MG Iteration : %d", (*fError)(mgCycle), mgCycle));
         fIterations = mgCycle + 1;
         break;
       }
@@ -1380,7 +1379,7 @@ void AliTPCPoissonSolver::Relax3D(TMatrixD **matricesCurrentV, TMatrixD **matric
         isw = jsw;
         for (Int_t j = 1; j < tnZColumn - 1; j++, isw = 3 - isw) {
           for (Int_t i = isw; i < tnRRow - 1; i += 2) {
-            //AliInfo(Form("Doing slice %d, z=%d, r=%d", m,j,i));
+            //Info("Relax3D",Form("Doing slice %d, z=%d, r=%d", m,j,i));
             (*matrixV)(i, j) = (coefficient2[i] * (*matrixV)(i - 1, j)
                                 + tempRatioZ * ((*matrixV)(i, j - 1) + (*matrixV)(i, j + 1))
                                 + coefficient1[i] * (*matrixV)(i + 1, j)
@@ -2274,8 +2273,8 @@ void AliTPCPoissonSolver::VCycle2D(const Int_t nRRow, const Int_t nZColumn, cons
     } // end post smoothing
 
     //// DEBUG ////
-    //AliInfo(Form("Count %d", count));
-    //AliInfo(Form("Exact Err: %f, MG Iteration : %d", (*fError)(mgCycle), mgCycle));
+    //Info("VCycle2D",Form("Count %d", count));
+    //Info("VCycle2D",Form("Exact Err: %f, MG Iteration : %d", (*fError)(mgCycle), mgCycle));
     //matricesCurrentV->Print();
     //matricesCurrentCharge->Print();
   }
@@ -2486,7 +2485,7 @@ AliTPCPoissonSolver::VCycle3D2D(const Int_t nRRow, const Int_t nZColumn, const I
     residue = tvResidue[count - 1];
 
 
-    //AliInfo("Before Pre-smoothing");
+    //Info("VCycle3D2D","Before Pre-smoothing");
     //matricesCurrentV->Print();
 
     // 1) Pre-Smoothing: Gauss-Seidel Relaxation or Jacobi
@@ -2645,7 +2644,7 @@ void AliTPCPoissonSolver::VCycle3D(const Int_t nRRow, const Int_t nZColumn, cons
   tPhiSlice = tPhiSlice < nnPhi ? nnPhi : tPhiSlice;
 
 
-  //AliInfo(Form("Grid information: tnRRow=%d, tcols=%d, tPhiSlice=%d\n", tnRRow,tnZColumn,tPhiSlice));
+  //Info("VCycle3D",Form("Grid information: tnRRow=%d, tcols=%d, tPhiSlice=%d\n", tnRRow,tnZColumn,tPhiSlice));
 
 
   for (count = gridFrom; count <= gridTo - 1; count++) {
@@ -2674,7 +2673,7 @@ void AliTPCPoissonSolver::VCycle3D(const Int_t nRRow, const Int_t nZColumn, cons
     residue = tvResidue[count - 1];
 
 
-    //AliInfo("Before Pre-smoothing");
+    //Info("VCycle3D","Before Pre-smoothing");
     //matricesCurrentV->Print();
 
     // 1) Pre-Smoothing: Gauss-Seidel Relaxation or Jacobi
@@ -2921,7 +2920,7 @@ AliTPCPoissonSolver::VCycle3D2DGPU(
     residue = tvResidue[count - 1];
 
 
-    //AliInfo("Before Pre-smoothing");
+    //Info("VCycle3D2DGPU","Before Pre-smoothing");
     //matricesCurrentV->Print();
 
     // 1) Pre-Smoothing: Gauss-Seidel Relaxation or Jacobi
