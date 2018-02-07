@@ -25,7 +25,7 @@
 #include "TMap.h"
 #include "TFile.h"
 #include "TGraph.h"
-#include "AliTPCSpaceCharge3DCalc.h"
+#include "AliTPCSpaceCharge3DDriftLine.h"
 #include "AliTPCPoissonSolver.h"
 #include "TClonesArray.h"
 #include "TTreeStream.h"
