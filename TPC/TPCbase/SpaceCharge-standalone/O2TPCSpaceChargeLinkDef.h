@@ -15,7 +15,6 @@
 #pragma link C++ class AliTPCLookUpTable3DInterpolatorIrregularD+;
 #pragma link C++ class AliTPCPoissonSolver+;
 #pragma link C++ class AliTPCSpaceCharge3DCalc+;
-#pragma link C++ class AliLog+;
 #pragma link C++ class AliSysInfo+;
 
 #endif
