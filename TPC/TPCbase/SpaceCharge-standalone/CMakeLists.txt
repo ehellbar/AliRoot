@@ -23,8 +23,6 @@ set(headers
 list(APPEND CMAKE_PREFIX_PATH $ENV{ROOTSYS})
 find_package(ROOT REQUIRED)
 include(${ROOT_USE_FILE})
-include(../../../cmake/CMakeALICE.cmake)
-find_program(ROOT_CINT NAMES rootcint PATHS $ENV{ROOTSYS}/bin NO_DEFAULT_PATH)
 
 # Define include directories
 include_directories(.
@@ -33,8 +31,7 @@ include_directories(.
                     ${ROOT_INCLUDE_DIRS})
 
 # Generate dictionary
-get_directory_property(incdirs INCLUDE_DIRECTORIES)
-generate_dictionary("${MODULE}" "${MODULE}LinkDef.h" "${headers}" "${incdirs}")
+ROOT_GENERATE_DICTIONARY(G__${MODULE} ${headers} LINKDEF ${MODULE}LinkDef.h)
 
 # Make shared library
 add_library(${MODULE} SHARED
