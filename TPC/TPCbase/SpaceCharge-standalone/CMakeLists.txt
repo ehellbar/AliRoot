@@ -44,6 +44,11 @@ install(TARGETS ${MODULE}
         LIBRARY DESTINATION lib)
 
 install(FILES
+        lib${MODULE}_rdict.pcm
+        lib${MODULE}.rootmap
+        DESTINATION lib)
+
+install(FILES
         ${headers}
         ${MODULE}LinkDef.h
         DESTINATION include)
