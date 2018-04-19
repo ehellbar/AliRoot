@@ -44,8 +44,8 @@ install(TARGETS ${MODULE}
         LIBRARY DESTINATION lib)
 
 install(FILES
-        lib${MODULE}_rdict.pcm
-        lib${MODULE}.rootmap
+        ${CMAKE_CURRENT_BINARY_DIR}/lib${MODULE}_rdict.pcm
+        ${CMAKE_CURRENT_BINARY_DIR}/lib${MODULE}.rootmap
         DESTINATION lib)
 
 install(FILES
