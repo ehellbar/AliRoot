@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# statTest.sh -- test suite for STAT
+# spaceChargeTest.sh -- test suite for AliTPCSpaceCharge3DDriftLine
 #
-# How to run all STAT tests:
+# How to run all AliTPCSpaceCharge3DDriftLine tests:
 #
 #   alienv enter AliRoot/latest  # load AliRoot environment
 #   cd <AliRoot_Build_Directory>
@@ -27,13 +27,13 @@ export ROOT_HIST=0
 testAliTPCSpaceCharge3DDriftLine() {
   cp $ALIROOT_SOURCE/TPC/TPCbase/test/AliTPCSpaceCharge3DDriftLineTest.C .
   root -n -b -l <<\EOF 2>&1 | tee testAliTPCSpaceCharge3DDriftLineTest.log
-    gSystem->AddIncludePath("-I$ALICE_ROOT/include");
-    .x ./AliTPCSpaceCharge3DDriftLineTest.C+
+  gSystem->AddIncludePath("-I$ALICE_ROOT/include");
+  .x ./AliTPCSpaceCharge3DDriftLineTest.C+
 EOF
   N_GOOD=$(grep -cE 'AliTPCSpaceCharge3DDriftLineTest.*Test.*OK.*' testAliTPCSpaceCharge3DDriftLineTest.log)
   N_BAD=$(grep -cE 'AliTPCSpaceCharge3DDriftLineTest.*Test.*FAILED.*' testAliTPCSpaceCharge3DDriftLineTest.log)
   TEST_STATUS=0
-  if [[ $N_GOOD < 6 ]]; then
+  if [[ $N_GOOD < 13 ]]; then
     # alilog_error "spacechargeTest.testAliTPCSpaceCharge3DDriftLine: Invariant test failed"
     ((TEST_STATUS++))
   fi

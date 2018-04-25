@@ -25,8 +25,10 @@ class AliHLTTPCCASliceOutCluster
 {
   public:
 
-  GPUh() void Set( UInt_t id, UInt_t row, float x, float y, float z ){
+  GPUh() void Set( UInt_t id, unsigned char row, unsigned char flags, unsigned short amp, float x, float y, float z ){
     fRow = row;
+    fFlags = flags;
+    fAmp = amp;
     fId = id;
     fX = x; fY = y; fZ = z;
   }
@@ -34,16 +36,26 @@ class AliHLTTPCCASliceOutCluster
   GPUh() float GetX() const {return fX;}
   GPUh() float GetY() const {return fY;}
   GPUh() float GetZ() const {return fZ;}
-  GPUh() UInt_t GetId() const {return fId; } //fId & 0x3FFFFFFF;}
-  GPUh() UInt_t GetRow() const {return fRow; }//fId>>30;}
+  GPUh() UInt_t GetId() const {return fId; }
+  GPUh() unsigned char GetRow() const {return fRow; }
+  GPUh() unsigned char GetFlags() const {return fFlags; }
+  GPUh() unsigned short GetAmp() const {return fAmp; }
 
   private:
 
   UInt_t  fId; // Id ( slice, patch, cluster )    
-  UInt_t  fRow; // row
+  unsigned char fRow; // row
+  unsigned char fFlags; //flags
+  unsigned short fAmp; //amplitude
   Float_t fX;// coordinates
   Float_t fY;// coordinates
   Float_t fZ;// coordinates
+
+#ifdef GMPropagatePadRowTime
+public:
+  float fPad;
+  float fTime;
+#endif
 };
 
 #endif 

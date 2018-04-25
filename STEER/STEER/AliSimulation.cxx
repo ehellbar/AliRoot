@@ -673,7 +673,13 @@ Bool_t AliSimulation::Run(Int_t nEvents)
     default: hmodS = "Unknown";
     }
     AliInfoF("HLT Trigger Mode %s detected from GRP",hmodS.Data());
-    if (hmode==AliGRPObject::kModeC) {
+    Int_t activeDetectors = grp->GetDetectorMask();
+    TString detStr = AliDAQ::ListOfTriggeredDetectors(activeDetectors);
+    Bool_t tpcIN = detStr.Contains("TPC");
+    if (!tpcIN) {
+      AliInfo("TPC is not in the run, disabling HLT");
+    }
+    if (hmode==AliGRPObject::kModeC && tpcIN) {
       fRunHLT.ReplaceAll(fgkRunHLTAuto,fgkHLTDefConf);
       AliInfoF("HLT simulation set to %s",fRunHLT.Data());
     }
@@ -2795,7 +2801,17 @@ void AliSimulation::StoreUsedCDBMapsAndEmbPaths() const
 
   // store embedding info
   if (fBkgrdFileNames) {
-    gDirectory->WriteObject(fBkgrdFileNames,AliStack::GetEmbeddingBKGPathsKey(),"kSingleKey");
+    TString str(gSystem->Getenv("OVERRIDE_BKG_PATH_RECORD"));
+    if (!str.IsNull()) {
+      TObjArray arrTmp;
+      arrTmp.AddLast( new TObjString(str.Data()) );
+      arrTmp.SetOwner(kTRUE);
+      AliInfoF("Overriding background path to: %s",str.Data());
+      gDirectory->WriteObject(&arrTmp,AliStack::GetEmbeddingBKGPathsKey(),"kSingleKey");
+    }
+    else {
+      gDirectory->WriteObject(fBkgrdFileNames,AliStack::GetEmbeddingBKGPathsKey(),"kSingleKey");
+    }
   }
   
   delete runLoader;

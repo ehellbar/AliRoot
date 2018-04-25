@@ -32,12 +32,12 @@
 #pragma link C++ class AliHLTTPCDefinitions+;
 #pragma link C++ class AliHLTTPCHistogramHandlerComponent+;
 #pragma link C++ class AliHLTTPCClusterAccessHLTOUT+;
+#pragma link C++ class AliHLTTPCPolynomFit+;
 #pragma link C++ class AliHLTTPCCATrack+;
 #pragma link C++ class AliHLTTPCCATracklet+;
 #pragma link C++ class AliHLTTPCCATracker+;
 #pragma link C++ class AliHLTTPCCABaseTrackParam+;
 #pragma link C++ class AliHLTTPCCATrackParam+;
-#pragma link C++ class AliHLTTPCCATrackConvertor+;
 #pragma link C++ class AliHLTTPCCAParam+;
 #pragma link C++ class AliHLTTPCCARow+;
 #pragma link C++ class AliHLTTPCCAGrid+;
@@ -50,7 +50,6 @@
 #pragma link C++ class AliHLTTPCCATrackletConstructor+;
 #pragma link C++ class AliHLTTPCCATrackletSelector+;
 #pragma link C++ class AliHLTTPCCAMCTrack+;
-#pragma link C++ class AliHLTTPCCAMerger+;
 #pragma link C++ class AliHLTTPCCAGlobalMergerComponent+;
 #pragma link C++ class AliHLTTPCCAClusterData+;
 #pragma link C++ class AliHLTTPCCASliceData+;
@@ -58,11 +57,13 @@
 #pragma link C++ class AliHLTTPCCAStandaloneFramework+;
 #pragma link C++ class AliHLTTPCCATrackerFramework+;
 #pragma link C++ class AliHLTTPCCAGPUTracker+;
-#pragma link C++ class AliHLTTPCCATrackerOutputConverter+;
+#pragma link C++ class AliHLTTPCCATrackConvertor+;
 #pragma link C++ class AliHLTTPCGMTrackParam+;
 #pragma link C++ class AliHLTTPCGMSliceTrack+;
 #pragma link C++ class AliHLTTPCGMMerger+;
 #pragma link C++ class AliHLTTPCGMPolynomialField+;
+#pragma link C++ class AliHLTTPCGMPropagator+;
+#pragma link C++ class AliHLTTPCGMPhysicalTrackModel+;
 #pragma link C++ class AliHLTTPCGMPolynomialFieldCreator+;
 #pragma link C++ class AliHLTTPCClusterStatComponent+;
 #pragma link C++ class AliHLTTPCDataCompressionComponent+;

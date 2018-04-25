@@ -90,6 +90,7 @@ public:
   void CalculateXtalkCorrection();
   void GetTailValue(Float_t ampfactor,Double_t &ionTailMax,Double_t &ionTailTotal,TGraphErrors **graphRes,Float_t *indexAmpGraphs,AliTPCclusterMI *cl0,AliTPCclusterMI *cl1);
   //
+  void FixKinkIndices();
   void FillESD(const TObjArray* arr);
   void DeleteSeeds();
   void SetDebug(Int_t debug){ fDebug = debug;}
@@ -188,7 +189,8 @@ public:
    Double_t GetYSectEdgeDist(int sec, int row, double ymax, double z);
    static Int_t GetTrackSector(double alpha);
 
-private:
+ protected:
+   //private:
 
   int GetAdjustedLabels(const AliTPCclusterMI* cl, int *lbReal);
   Bool_t IsFindable(AliTPCseed & t);

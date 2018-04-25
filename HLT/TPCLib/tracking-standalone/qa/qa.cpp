@@ -64,7 +64,6 @@ static TCanvas *cpull[7];
 static TPad* ppull[7][5];
 static TLegend* legendpull[6];
 
-
 static TH1F* clusters[11]; //attached, fakeAttached, tracks, all, attachedRel, fakeAttachedRel, treaksRel, attachedInt, fakeAttachedInt, treaksInt, AllInt
 static TCanvas* cclust[3];
 static TPad* pclust[3];
@@ -79,6 +78,12 @@ TH1F* ncl;
 TCanvas* cncl;
 TPad* pncl;
 TLegend* legendncl;
+
+int nEvents = 0;
+std::vector<std::vector<int>> mcEffBuffer;
+std::vector<std::vector<int>> mcLabelBuffer;
+std::vector<std::vector<bool>> goodTracks;
+std::vector<std::vector<bool>> goodHits;
 
 #define DEBUG 0
 #define TIMING 0
@@ -95,8 +100,11 @@ bool MCComp(const AliHLTTPCClusterMCWeight& a, const AliHLTTPCClusterMCWeight& b
 #define ETA_MAX 1.5
 #define ETA_MAX2 0.9
 
-#define MIN_WEIGHT_CLS 40
+#define MIN_WEIGHT_CLS 40 // SG!!! 40
+
 #define FINDABLE_WEIGHT_CLS 70
+
+#define MC_LABEL_INVALID -1e9
 
 static const int ColorCount = 12;
 static Color_t colorNums[ColorCount];
@@ -113,8 +121,8 @@ static const double Scale[5] = {10., 10., 1000., 1000., 100.};
 static const double ScaleNative[5] = {10., 10., 1000., 1000., 1.};
 static const char* XAxisTitles[5] = {"y_{mc} [cm]", "z_{mc} [cm]", "#Phi_{mc} [rad]", "#eta_{mc}", "p_{Tmc} [Gev/c]"};
 static const char* AxisTitles[5] = {"y-y_{mc} [mm] (Resolution)", "z-z_{mc} [mm] (Resolution)", "#phi-#phi_{mc} [mrad] (Resolution)", "#lambda-#lambda_{mc} [mrad] (Resolution)", "(p_{T} - p_{Tmc}) / p_{Tmc} [%] (Resolution)"};
-static const char* AxisTitlesNative[5] = {"y-y_{mc} [mm] (Resolution)", "z-z_{mc} [mm] (Resolution)", "sin(#phi)-sin(#phi_{mc}) (Resolution)", "tan(#lambda)-tan(#lambda_{mc}) (Resolution)", "(q/p_{T} - q/p_{Tmc}) (Resolution)"};
-static const char* AxisTitlesPull[5] = {"y-y_{mc}/#sigma_{y} (Pull)", "z-z_{mc}/#sigma_{z} (Pull)", "sin(#phi)-sin(#phi_{mc})/#sigma_{sin(#phi)} (Pull)", "tan(#lambda)-tan(#lambda_{mc})/#sigma_{tan(#lambda)} (Pull)", "(q/p_{T} - q/p_{Tmc})/#sigma{q/p_{T}} (Pull)"};
+static const char* AxisTitlesNative[5] = {"y-y_{mc} [mm] (Resolution)", "z-z_{mc} [mm] (Resolution)", "sin(#phi)-sin(#phi_{mc}) (Resolution)", "tan(#lambda)-tan(#lambda_{mc}) (Resolution)", "q*(q/p_{T} - q/p_{Tmc}) (Resolution)"};
+static const char* AxisTitlesPull[5] = {"y-y_{mc}/#sigma_{y} (Pull)", "z-z_{mc}/#sigma_{z} (Pull)", "sin(#phi)-sin(#phi_{mc})/#sigma_{sin(#phi)} (Pull)", "tan(#lambda)-tan(#lambda_{mc})/#sigma_{tan(#lambda)} (Pull)", "q*(q/p_{T} - q/p_{Tmc})/#sigma_{q/p_{T}} (Pull)"};
 static const char* ClustersNames[4] = {"Correctly attached clusters", "Fake attached clusters", "Clusters of reconstructed tracks", "All clusters"};
 static const char* ClusterTitles[3] = {"Clusters Pt Distribution / Attachment", "Clusters Pt Distribution / Attachment (relative to all clusters)", "Clusters Pt Distribution / Attachment (integrated)"};
 static const char* ClusterNamesShort[4] = {"Attached", "Fake", "FoundTracks", "All"};
@@ -129,6 +137,7 @@ static const float axes_max[5] = {Y_MAX, Z_MAX, 2.f *  kPi, ETA_MAX, PT_MAX};
 static const int axis_bins[5] = {51, 51, 144, 31, 50};
 static const int res_axis_bins[] = {1017, 113}; //Consecutive bin sizes, histograms are binned down until the maximum entry is 50, each bin size should evenly divide its predecessor.
 static const float res_axes[5] = {1., 1., 0.03, 0.03, 1.0};
+static const float res_axes_native[5] = {1., 1., 0.1, 0.1, 5.0};
 static const float pull_axis = 10.f;
 
 static void SetAxisSize(TH1F* e)
@@ -193,8 +202,19 @@ void SetMCTrackRange(int min, int max)
 	mcTrackMax = max;
 }
 
+bool SuppressTrack(int iTrack)
+{
+	return (configStandalone.configQA.matchMCLabels.size() && !goodTracks[nEvents][iTrack]);
+}
+
+bool SuppressHit(int iHit)
+{
+	return (configStandalone.configQA.matchMCLabels.size() && !goodHits[nEvents - 1][iHit]);
+}
+
 void InitQA()
 {
+	structConfigQA& config = configStandalone.configQA;
 	char name[1024], fname[1024];
 
 	for (int i = 0;i < ColorCount;i++)
@@ -255,15 +275,17 @@ void InitQA()
 				res[i][j][1] = new TH1F(fname, fname, axis_bins[j], axes_min[j], axes_max[j]);
 			}
 			sprintf(name, "res_%s_vs_%s", VSParameterNames[i], VSParameterNames[j]);
+			const float* axis = config.nativeFitResolutions ? res_axes_native : res_axes;
+			const int nbins = i == 4 && config.nativeFitResolutions ? (10 * res_axis_bins[0]) : res_axis_bins[0];
 			if (j == 4)
 			{
 				double* binsPt = CreateLogAxis(axis_bins[4], axes_min[4], axes_max[4]);
-				res2[i][j] = new TH2F(name, name, res_axis_bins[0], -res_axes[i], res_axes[i], axis_bins[j], binsPt);
+				res2[i][j] = new TH2F(name, name, nbins, -axis[i], axis[i], axis_bins[j], binsPt);
 				delete[] binsPt;
 			}
 			else
 			{
-				res2[i][j] = new TH2F(name, name, res_axis_bins[0], -res_axes[i], res_axes[i], axis_bins[j], axes_min[j], axes_max[j]);
+				res2[i][j] = new TH2F(name, name, nbins, -axis[i], axis[i], axis_bins[j], axes_min[j], axes_max[j]);
 			}
 		}
 	}
@@ -324,6 +346,55 @@ void InitQA()
 	}
 	
 	mkdir("plots", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	
+	if (config.matchMCLabels.size())
+	{
+		unsigned int nFiles = config.matchMCLabels.size();
+		std::vector<TFile*> files(nFiles);
+		std::vector<std::vector<std::vector<int>>*> labelsBuffer(nFiles);
+		std::vector<std::vector<std::vector<int>>*> effBuffer(nFiles);
+		for (unsigned int i = 0;i < nFiles;i++)
+		{
+			files[i] = new TFile(config.matchMCLabels[i]);
+			labelsBuffer[i] = (std::vector<std::vector<int>>*) files[i]->Get("mcLabelBuffer");
+			effBuffer[i] = (std::vector<std::vector<int>>*) files[i]->Get("mcEffBuffer");
+			if (labelsBuffer[i] == nullptr || effBuffer[i] == nullptr)
+			{
+				printf("Error opening / reading from labels file %d/%s: 0x%p 0x%p\n", i, config.matchMCLabels[i], labelsBuffer[i], effBuffer[i]);
+				exit(1);
+			}
+		}
+		
+		goodTracks.resize(labelsBuffer[0]->size());
+		goodHits.resize(labelsBuffer[0]->size());
+		for (unsigned int iEvent = 0;iEvent < labelsBuffer[0]->size();iEvent++)
+		{
+			std::vector<bool> labelsOK((*effBuffer[0])[iEvent].size());
+			for (unsigned int k = 0;k < (*effBuffer[0])[iEvent].size();k++)
+			{
+				labelsOK[k] = false;
+				for (unsigned int l = 0;l < nFiles;l++)
+				{
+					if ((*effBuffer[0])[iEvent][k] != (*effBuffer[l])[iEvent][k])
+					{
+						labelsOK[k] = true;
+						break;
+					}
+				}
+			}
+			goodTracks[iEvent].resize((*labelsBuffer[0])[iEvent].size());
+			for (unsigned int k = 0;k < (*labelsBuffer[0])[iEvent].size();k++)
+			{
+				if ((*labelsBuffer[0])[iEvent][k] == MC_LABEL_INVALID) continue;
+				goodTracks[iEvent][k] = labelsOK[abs((*labelsBuffer[0])[iEvent][k])];
+			}
+		}
+		
+		for (unsigned int i = 0;i < nFiles;i++)
+		{
+			delete files[i];
+		}
+	}
 }
 
 void RunQA()
@@ -344,7 +415,18 @@ void RunQA()
 	totalFakes = 0;
 	structConfigQA& config = configStandalone.configQA;	
 	HighResTimer timer;
-
+	
+	nEvents++;
+	if (config.writeMCLabels)
+	{
+		mcEffBuffer.resize(nEvents);
+		mcLabelBuffer.resize(nEvents);
+		mcEffBuffer[nEvents - 1].resize(hlt.GetNMCInfo());
+		mcLabelBuffer[nEvents - 1].resize(merger.NOutputTracks());
+	}
+	std::vector<int> &effBuffer = mcEffBuffer[nEvents - 1];
+	std::vector<int> &labelBuffer = mcLabelBuffer[nEvents - 1];
+	
 	if (hlt.GetNMCInfo() && hlt.GetNMCLabels())
 	{
 		//Assign Track MC Labels
@@ -361,7 +443,7 @@ void RunQA()
 			std::vector<AliHLTTPCClusterMCWeight> labels;
 			for (int k = 0;k < track.NClusters();k++)
 			{
-				if (merger.Clusters()[track.FirstClusterRef() + k].fState < 0) continue;
+				if (merger.Clusters()[track.FirstClusterRef() + k].fState & AliHLTTPCGMMergedTrackHit::flagReject) continue;
 				nClusters++;
 				int hitId = merger.Clusters()[track.FirstClusterRef() + k].fId;
 				if (hitId >= hlt.GetNMCLabels()) {printf("Invalid hit id %d > %d\n", hitId, hlt.GetNMCLabels());ompError = true;break;}
@@ -379,7 +461,7 @@ void RunQA()
 			if (ompError) continue;
 			if (labels.size() == 0)
 			{
-				trackMCLabels[i] = -1e9;
+				trackMCLabels[i] = MC_LABEL_INVALID;
 				totalFakes++;
 				continue;
 			}
@@ -430,7 +512,7 @@ void RunQA()
 			int label = trackMCLabels[i] < 0 ? (-trackMCLabels[i] - 2) : trackMCLabels[i];
 			for (int k = 0;k < track.NClusters();k++)
 			{
-				if (merger.Clusters()[track.FirstClusterRef() + k].fState < 0) continue;
+				if (merger.Clusters()[track.FirstClusterRef() + k].fState & AliHLTTPCGMMergedTrackHit::flagReject) continue;
 				int hitId = merger.Clusters()[track.FirstClusterRef() + k].fId;
 				bool correct = false;
 				for (int j = 0;j < 3;j++) if (hlt.GetMCLabels()[hitId].fClusterID[j].fMCID == label) {correct=true;break;}
@@ -451,6 +533,38 @@ void RunQA()
 					(merger.OutputTracks()[i].OK() && fabs(merger.OutputTracks()[i].GetParam().GetZ()) < fabs(merger.OutputTracks()[revLabel].GetParam().GetZ())))
 				{
 					revLabel = i;
+				}
+			}
+		}
+		if (config.matchMCLabels.size())
+		{
+			goodHits[nEvents-1].resize(hlt.GetNMCLabels());
+			std::vector<bool> allowMCLabels(hlt.GetNMCInfo());
+			for (int k = 0;k < hlt.GetNMCInfo();k++) allowMCLabels[k] = false;
+			for (int i = 0;i < merger.NOutputTracks();i++)
+			{
+				if (!goodTracks[nEvents-1][i]) continue;
+				if (config.matchDisplayMinPt > 0)
+				{
+					if (trackMCLabels[i] == MC_LABEL_INVALID) continue;
+					const AliHLTTPCCAMCInfo& info = hlt.GetMCInfo()[abs(trackMCLabels[i])];
+					if (info.fPx * info.fPx + info.fPy * info.fPy < config.matchDisplayMinPt * config.matchDisplayMinPt) continue;
+				}
+
+				const AliHLTTPCGMMergedTrack &track = merger.OutputTracks()[i];
+				for (int j = 0;j < track.NClusters();j++)
+				{
+					int hitId = merger.Clusters()[track.FirstClusterRef() + j].fId;
+					int mcID = hlt.GetMCLabels()[hitId].fClusterID[0].fMCID;
+					if (mcID >= 0) allowMCLabels[mcID] = true;
+				}
+			}
+			for (int i = 0;i < hlt.GetNMCLabels();i++)
+			{
+				for (int j = 0;j < 3;j++)
+				{
+					int mcID = hlt.GetMCLabels()[i].fClusterID[j].fMCID;
+					if (mcID >= 0 && allowMCLabels[mcID]) goodHits[nEvents-1][i] = true;
 				}
 			}
 		}
@@ -490,6 +604,7 @@ void RunQA()
 				mc2.theta = info.fPz == 0 ? (kPi / 2) : (std::acos(info.fPz / std::sqrt(p)));
 				mc2.eta = -std::log(std::tan(0.5 * mc2.theta));
 			}
+			if (config.writeMCLabels) effBuffer[i] = recTracks[i] * 1000 + fakeTracks[i];
 		}
 		
 		//Compute MC Track Parameters for MC Tracks
@@ -509,6 +624,8 @@ void RunQA()
 			int findable = mc2.nWeightCls >= FINDABLE_WEIGHT_CLS;
 			if (info.fPID < 0) continue;
 			if (info.fCharge == 0.f) continue;
+			if (config.filterCharge && info.fCharge * config.filterCharge < 0) continue;
+			if (config.filterPID >= 0 && info.fPID != config.filterPID) continue;
 			
 			if (fabs(mceta) > ETA_MAX || mcpt < PT_MIN || mcpt > PT_MAX) continue;
 			
@@ -556,11 +673,11 @@ void RunQA()
 		prop.SetMaxSinPhi( .999 );
 		prop.SetMaterial( kRadLen, kRho );
 		prop.SetPolynomialField( merger.pField() );		
-		prop.SetUseMeanMomentum(kFALSE );
-		prop.SetContinuousTracking( kFALSE );
-		
+		prop.SetToyMCEventsFlag( merger.SliceParam().ToyMCEventsFlag());
+
 		for (int i = 0; i < merger.NOutputTracks(); i++)
 		{
+			if (config.writeMCLabels) labelBuffer[i] = trackMCLabels[i];
 			if (trackMCLabels[i] < 0) continue;
 			const AliHLTTPCCAMCInfo& mc1 = hlt.GetMCInfo()[trackMCLabels[i]];
 			const additionalMCParameters& mc2 = mcParam[trackMCLabels[i]];
@@ -572,9 +689,12 @@ void RunQA()
 			if (fabs(mc2.eta) > ETA_MAX || mc2.pt < PT_MIN || mc2.pt > PT_MAX) continue;
 			if (mc1.fCharge == 0.f) continue;
 			if (mc1.fPID < 0) continue;
+			if (config.filterCharge && mc1.fCharge * config.filterCharge < 0) continue;
+			if (config.filterPID >= 0 && mc1.fPID != config.filterPID) continue;
 			if (mc2.nWeightCls < MIN_WEIGHT_CLS) continue;
 			if (config.resPrimaries == 1 && (!mc1.fPrim || mc1.fPrimDaughters)) continue;
 			else if (config.resPrimaries == 2 && (mc1.fPrim || mc1.fPrimDaughters)) continue;
+			if (trackMCLabelsReverse[trackMCLabels[i]] != i) continue;
 			
 			float mclocal[4]; //Rotated x,y,Px,Py mc-coordinates - the MC data should be rotated since the track is propagated best along x
 			float c = std::cos(track.GetAlpha());
@@ -597,18 +717,20 @@ void RunQA()
 			float alpha = track.GetAlpha();		
 			prop.SetTrack(&param, alpha);	
 			bool inFlyDirection = 0;
-			if (config.strict && (param.X() - mclocal[0]) * (param.X() - mclocal[0]) + (param.Y() - mclocal[1]) * (param.Y() - mclocal[1]) + (param.Z() - mc1.fZ) * (param.Z() - mc1.fZ) > 25) continue;
+			if (config.strict && (param.X() - mclocal[0]) * (param.X() - mclocal[0]) + (param.Y() - mclocal[1]) * (param.Y() - mclocal[1]) + (param.Z() + param.ZOffset() - mc1.fZ) * (param.Z() + param.ZOffset() - mc1.fZ) > 25) continue;
 			
 			if (prop.PropagateToXAlpha( mclocal[0], alpha, inFlyDirection ) ) continue;
-			if (fabs(param.Y() - mclocal[1]) > (config.strict ? 1.f : 4.f) || fabs(param.Z() - mc1.fZ) > (config.strict ? 1.f : 4.f)) continue;
+			if (fabs(param.Y() - mclocal[1]) > (config.strict ? 1.f : 4.f) || fabs(param.Z() + param.ZOffset() - mc1.fZ) > (config.strict ? 1.f : 4.f)) continue;
+			
+			float charge = mc1.fCharge > 0 ? 1.f : -1.f;
 			
 			float deltaY = param.GetY() - mclocal[1];
-			float deltaZ = param.GetZ() - mc1.fZ;
+			float deltaZ = param.GetZ() + param.ZOffset() - mc1.fZ;
 			float deltaPhiNative = param.GetSinPhi() - mclocal[3] / mc2.pt;
 			float deltaPhi = std::asin(param.GetSinPhi()) - std::atan2(mclocal[3], mclocal[2]);
 			float deltaLambdaNative = param.GetDzDs() - mc1.fPz / mc2.pt;
 			float deltaLambda = std::atan(param.GetDzDs()) - std::atan2(mc1.fPz, mc2.pt);
-			float deltaPtNative = param.GetQPt() - (mc1.fCharge / 3.f) / mc2.pt;
+			float deltaPtNative = (param.GetQPt() - charge / mc2.pt) * charge;
 			float deltaPt = (fabs(1.f / param.GetQPt()) - mc2.pt) / mc2.pt;
 			
 			float paramval[5] = {mclocal[1], mc1.fZ, mc2.phi, mc2.eta, mc2.pt};
@@ -690,7 +812,7 @@ void RunQA()
 			if (!track.OK()) continue;
 			for (int k = 0;k < track.NClusters();k++)
 			{
-				if (merger.Clusters()[track.FirstClusterRef() + k].fState < 0) continue;
+				if (merger.Clusters()[track.FirstClusterRef() + k].fState & AliHLTTPCGMMergedTrackHit::flagReject) continue;
 				int hitId = merger.Clusters()[track.FirstClusterRef() + k].fId;
 				float pt = fabs(1.f/track.GetParam().GetQPt());
 				if (pt > clusterInfo[hitId]) clusterInfo[hitId] = pt;
@@ -767,7 +889,17 @@ void GetName(char* fname, int k)
 {
 	const structConfigQA& config = configStandalone.configQA;
 	const int nNewInput = config.inputHistogramsOnly ? 0 : 1;
-	if (k || config.inputHistogramsOnly || config.name) sprintf(fname, "%s - ", config.inputHistogramsOnly || k ? (config.compareInputNames.size() > (unsigned) (k - nNewInput) ? config.compareInputNames[k - nNewInput] : config.compareInputs[k - nNewInput]) : config.name);
+	if (k || config.inputHistogramsOnly || config.name)
+	{
+		if (!(config.inputHistogramsOnly || k)) sprintf(fname, "%s - ", config.name);
+		else if (config.compareInputNames.size() > (unsigned) (k - nNewInput)) sprintf(fname, "%s - ", config.compareInputNames[k - nNewInput]);
+		else
+		{
+			strcpy(fname, config.compareInputs[k - nNewInput]);
+			if (strlen(fname) > 5 && strcmp(fname + strlen(fname) - 5, ".root") == 0) fname[strlen(fname) - 5] = 0;
+			strcat(fname, " - ");
+		}
+	}
 	else fname[0] = 0;
 }
 
@@ -965,6 +1097,7 @@ int DrawQAHistograms()
 
 	//Process / Draw Resolution Histograms
 	TH1D *resIntegral[5] = {}, *pullIntegral[5] = {};
+	TF1* customGaus = new TF1("G","[0]*exp(-(x-[1])*(x-[1])/(2.*[2]*[2]))");
 	for (int p = 0;p < 2;p++)
 	{
 		for (int ii = 0;ii < 6;ii++)
@@ -992,6 +1125,7 @@ int DrawQAHistograms()
 						int bin0 = std::max(bin - integ, 0);
 						int bin1 = std::min(bin + integ, nBins);
 						TH1D* proj = src->ProjectionX("proj", bin0, bin1);
+						proj->ClearUnderflowAndOverflow();
 						if (proj->GetEntries())
 						{
 							unsigned int rebin = 1;
@@ -1010,29 +1144,42 @@ int DrawQAHistograms()
 							}
 							else
 							{
-								proj->Fit("gaus", proj->GetMaximum() < 20 ? "sQl" : "sQ");
-								TF1* fitFunc = proj->GetFunction("gaus");
-								float sigma = fabs(fitFunc->GetParameter(2));
-								if (sigma > 0.f)
+								proj->GetXaxis()->SetRangeUser(proj->GetMean() - 6. * proj->GetRMS(), proj->GetMean() + 6. * proj->GetRMS());
+								proj->GetXaxis()->SetRangeUser(proj->GetMean() - 3. * proj->GetRMS(), proj->GetMean() + 3. * proj->GetRMS());
+								bool forceLogLike = proj->GetMaximum() < 20;
+								for (int k = forceLogLike ? 2 : 0; k < 3;k++)
 								{
-									dst[0]->SetBinContent(bin, fabs(fitFunc->GetParameter(2)));
+									proj->Fit("gaus", forceLogLike || k == 2 ? "sQl" : k ? "sQww" : "sQ");
+									TF1* fitFunc = proj->GetFunction("gaus");
+									
+									if (k && !forceLogLike)
+									{
+										customGaus->SetParameters(fitFunc->GetParameter(0), fitFunc->GetParameter(1), fitFunc->GetParameter(2));
+										proj->Fit(customGaus, "sQ");
+										fitFunc = customGaus;
+									}
+									
+									const float sigma = fabs(fitFunc->GetParameter(2));
+									dst[0]->SetBinContent(bin, sigma);
 									dst[1]->SetBinContent(bin, fitFunc->GetParameter(1));
-								}
-								else
-								{
-									dst[0]->SetBinContent(bin, 0);
-									dst[1]->SetBinContent(bin, 0);
-								}
-								dst[0]->SetBinError(bin, fitFunc->GetParError(2));
-								dst[1]->SetBinError(bin, fitFunc->GetParError(1));
+									dst[0]->SetBinError(bin, fitFunc->GetParError(2));
+									dst[1]->SetBinError(bin, fitFunc->GetParError(1));
 
-								bool fail = fabs(proj->GetMean() - dst[1]->GetBinContent(bin)) > res_axes[j] || dst[0]->GetBinError(bin) > 1 || dst[1]->GetBinError(bin) > 1;
-								if (fail)
-								{
-									dst[0]->SetBinContent(bin, proj->GetMean());
-									dst[1]->SetBinContent(bin, proj->GetRMS());
-									dst[0]->SetBinError(bin, sqrt(proj->GetRMS()));
-									dst[1]->SetBinError(bin, sqrt(proj->GetRMS()));
+									const bool fail1 = sigma <= 0.f;
+									const bool fail2 = fabs(proj->GetMean() - dst[1]->GetBinContent(bin)) > std::min<float>(p ? pull_axis : config.nativeFitResolutions ? res_axes_native[j] : res_axes[j], 3.f * proj->GetRMS());
+									const bool fail3 = dst[0]->GetBinContent(bin) > 3.f * proj->GetRMS() || dst[0]->GetBinError(bin) > 1 || dst[1]->GetBinError(bin) > 1;
+									const bool fail4 = fitFunc->GetParameter(0) < proj->GetMaximum() / 5.;
+									const bool fail = fail1 || fail2 || fail3 || fail4;
+									//if (p == 0 && ii == 4 && j == 2) DrawHisto(proj, Form("Hist_bin_%d-%d_vs_%d____%d_%d___%f-%f___%f-%f___%d.pdf", p, j, ii, bin, k, dst[0]->GetBinContent(bin), proj->GetRMS(), dst[1]->GetBinContent(bin), proj->GetMean(), (int) fail), "");
+
+									if (!fail) break;
+									else if (k >= 2)
+									{
+										dst[0]->SetBinContent(bin, proj->GetRMS());
+										dst[0]->SetBinError(bin, sqrt(proj->GetRMS()));
+										dst[1]->SetBinContent(bin, proj->GetMean());
+										dst[1]->SetBinError(bin, sqrt(proj->GetRMS()));
+									}
 								}
 							}
 						}
@@ -1061,7 +1208,7 @@ int DrawQAHistograms()
 				{
 					if (config.inputHistogramsOnly) dstIntegral = new TH1D;
 					sprintf(fname, p ? "IntPull%s" : "IntRes%s", VSParameterNames[j]);
-					sprintf(name, p ? "%s Pull" : "%s Resolution", config.nativeFitResolutions ? ParameterNamesNative[j] : ParameterNames[j]);
+					sprintf(name, p ? "%s Pull" : "%s Resolution", p || config.nativeFitResolutions ? ParameterNamesNative[j] : ParameterNames[j]);
 					dstIntegral->SetName(fname);
 					dstIntegral->SetTitle(name);
 				}
@@ -1106,7 +1253,7 @@ int DrawQAHistograms()
 						TH1F* e = dst[l];
 						if (!config.inputHistogramsOnly && k == 0)
 						{
-							sprintf(name, p ? "%s Pull" : "%s Resolution", config.nativeFitResolutions ? ParameterNamesNative[j] : ParameterNames[j]);
+							sprintf(name, p ? "%s Pull" : "%s Resolution", p || config.nativeFitResolutions ? ParameterNamesNative[j] : ParameterNames[j]);
 							e->SetTitle(name);
 							e->SetStats(kFALSE);
 							if (tout)
@@ -1133,8 +1280,8 @@ int DrawQAHistograms()
 						if (j == 0)
 						{
 							GetName(fname, k);
-							if (p) sprintf(name, "%s%s", fname, l ? "Mean Pull" : "Pull");
-							else sprintf(name, "%s%s", fname, l ? "Mean Resolution" : "Resolution");
+							if (p) sprintf(name, "%s%s", fname, l ? "Mean" : "Pull");
+							else sprintf(name, "%s%s", fname, l ? "Mean" : "Resolution");
 							leg->AddEntry(e, name, "l");
 						}
 					}
@@ -1149,6 +1296,7 @@ int DrawQAHistograms()
 			can->Print(fname);
 		}
 	}
+	delete customGaus;
 	
 	//Process Integral Resolution Histogreams
 	for (int p = 0;p < 2;p++)
@@ -1343,6 +1491,17 @@ int DrawQAHistograms()
 		legendncl->Draw();
 		cncl->cd();
 		cncl->Print("plots/nClusters.pdf");
+	}
+	
+	if (tout && !config.inputHistogramsOnly && config.writeMCLabels)
+	{
+		gInterpreter->GenerateDictionary("vector<vector<int>>","");
+		tout->WriteObject(&mcEffBuffer, "mcEffBuffer");
+		tout->WriteObject(&mcLabelBuffer, "mcLabelBuffer");
+		unlink("AutoDict_vector_vector_int__.cxx");
+		unlink("AutoDict_vector_vector_int___cxx_ACLiC_dict_rdict.pcm");
+		unlink("AutoDict_vector_vector_int___cxx.d");
+		unlink("AutoDict_vector_vector_int___cxx.so");
 	}
 
 	if (tout)

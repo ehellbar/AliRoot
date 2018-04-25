@@ -87,7 +87,7 @@ void AliPDG::AddParticlesToPdgDataBase()
   pdgDB->AddParticle("A_0+    ", " ", 0.9960, kFALSE, 0.0,+3, "meson",  9000211);
   pdgDB->AddParticle("A_0-    ", " ", 0.9960, kFALSE, 0.0,-3, "meson", -9000211);
 
-  pdgDB->AddParticle("F0P0    ", " ", 0.9960, kFALSE, 0.0, 0, "meson",  9010221);
+  //pdgDB->AddParticle("F0P0    ", " ", 0.9960, kFALSE, 0.0, 0, "meson",  9010221);
 
   pdgDB->AddParticle("KDL_2+  ", " ", 1.773,  kFALSE, 0.0,+3, "meson",   10325);
   pdgDB->AddParticle("KDL_2-  ", " ", 1.773,  kFALSE, 0.0,-3, "meson",  -10325);
@@ -218,10 +218,34 @@ void AliPDG::AddParticlesToPdgDataBase()
 
   ionCode = -1010020040;
   if(!pdgDB->GetParticle(ionCode)){
-    pdgDB->AddParticle("AntiHyperTriton","AntiHyperTriton", 3.929, kFALSE,
+    pdgDB->AddParticle("AntiHyperhelium4","AntiHyperhelium4", 3.929, kFALSE,
 		       2.5e-15, 6, "Ion", ionCode);
   }
 
+  ionCode = 1010020050;
+  if(!pdgDB->GetParticle(ionCode)){
+    pdgDB->AddParticle("Hyperhelium5","Hyperhelium5", 4.841, kFALSE,
+               2.5e-15, 6, "Ion", ionCode);
+  }
+    
+  ionCode = -1010020050;
+  if(!pdgDB->GetParticle(ionCode)){
+    pdgDB->AddParticle("AntiHyperhelium5","AntiHyperhelium5", 4.841, kFALSE,
+               2.5e-15, 6, "Ion", ionCode);
+  }
+    
+    ionCode = 1020010040;
+    if(!pdgDB->GetParticle(ionCode)){
+        pdgDB->AddParticle("DoubleHyperhydrogen4","DoubleHyperhydrogen4", 4.106, kFALSE,
+                           2.5e-15, 6, "Ion", ionCode);
+    }
+    
+    ionCode = -1020010040;
+    if(!pdgDB->GetParticle(ionCode)){
+        pdgDB->AddParticle("DoubleAntiHyperhydrogen4","DoubleAntiHyperhydrogen4", 4.106, kFALSE,
+                           2.5e-15, 6, "Ion", ionCode);
+    }
+    
   ionCode = 1010000020;
   if(!pdgDB->GetParticle(ionCode)){
     pdgDB->AddParticle("LambdaNeutron","LambdaNeutron", 2.054, kFALSE,

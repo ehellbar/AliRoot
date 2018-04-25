@@ -54,6 +54,7 @@
 #include "AliVTrack.h"
 #include "AliVfriendEvent.h"
 #include "AliVfriendTrack.h"
+#include "AliESDtrack.h"
 
 #include "AliTracker.h"
 #include "AliMagF.h"
@@ -496,7 +497,13 @@ void AliTPCcalibCosmic::FindPairs(const AliVEvent *event){
 
    if (ntracks>4 && TMath::Abs(trackIn->GetTgl())<0.0015) continue;  // filter laser 
 
-   const AliVfriendTrack *friendTrack = friendEvent->GetTrack(i);
+   const AliVfriendTrack *friendTrack = 0;
+   if (track->IsA()==AliESDtrack::Class()) {
+     friendTrack = ((AliESDtrack*)track)->GetFriendTrack();
+   }
+   else {
+     friendTrack = friendEvent->GetTrack(i);
+   }
    if (!friendTrack) continue;
    AliTPCseed *seed = new AliTPCseed();   
    if (friendTrack->GetTPCseed(*seed)==0) {
@@ -1108,10 +1115,24 @@ void AliTPCcalibCosmic::FindCosmicPairs(const AliVEvent *event) {
       Int_t ntracksSPD = vertexSPD->GetNContributors();
       Int_t ntracksTPC = vertexTPC->GetNContributors();
       //
-      AliVfriendTrack *friendTrack0 = const_cast<AliVfriendTrack*>(friendEvent->GetTrack(itrack0));
+      AliVfriendTrack *friendTrack0 = 0;
+      AliVfriendTrack *friendTrack1 = 0;      
+      if (track0->IsA()==AliESDtrack::Class()) {
+	friendTrack0 = (AliVfriendTrack*)(((AliESDtrack*)track0)->GetFriendTrack());
+      }
+      else {
+	friendTrack0 = const_cast<AliVfriendTrack*>(friendEvent->GetTrack(itrack0));
+      }
       if (!friendTrack0) continue;
-      AliVfriendTrack *friendTrack1 = const_cast<AliVfriendTrack*>(friendEvent->GetTrack(itrack1));
+      
+      if (track1->IsA()==AliESDtrack::Class()) {
+	friendTrack1 = (AliVfriendTrack*)(((AliESDtrack*)track1)->GetFriendTrack());
+      }
+      else {
+	friendTrack1 = const_cast<AliVfriendTrack*>(friendEvent->GetTrack(itrack1));
+      }    
       if (!friendTrack1) continue;
+      
       AliTPCseed *seed0 = 0;   
       AliTPCseed *seed1 = 0;
       AliTPCseed tpcSeed0;

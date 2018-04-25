@@ -16,6 +16,9 @@
 #include "AliEMCALTriggerDCSConfig.h"
 #include "AliEMCALTriggerSTUDCSConfig.h"
 #include "AliEMCALTriggerTRUDCSConfig.h"
+#include <bitset>
+#include <iostream>
+#include <sstream>
 
 /// \cond CLASSIMP
 ClassImp(AliEMCALTriggerDCSConfig) ;
@@ -48,12 +51,12 @@ AliEMCALTriggerDCSConfig::~AliEMCALTriggerDCSConfig()
 bool AliEMCALTriggerDCSConfig::operator==(const AliEMCALTriggerDCSConfig & other) const {
   bool isequal = true;
   if(fSTUObj && other.fSTUObj) {
-    if(!(*fSTUObj == *other.fSTUObj)) isequal == false; // both EMCAL STU objects there, but not the same
-  } else if((fSTUObj && !other.fSTUObj) || (!fSTUObj && other.fSTUObj)) isequal == false; // one of the two missing
+    if(!(*fSTUObj == *other.fSTUObj)) isequal = false; // both EMCAL STU objects there, but not the same
+  } else if((fSTUObj && !other.fSTUObj) || (!fSTUObj && other.fSTUObj)) isequal = false; // one of the two missing
 
   if(fSTUDCAL && other.fSTUDCAL) {
-    if(!(*fSTUDCAL == *other.fSTUDCAL)) isequal == false; // both DCAL STU objects there, but not the same
-  } else if((fSTUDCAL && !other.fSTUDCAL) || (!fSTUDCAL && other.fSTUDCAL)) isequal == false; // one of the two missing
+    if(!(*fSTUDCAL == *other.fSTUDCAL)) isequal = false; // both DCAL STU objects there, but not the same
+  } else if((fSTUDCAL && !other.fSTUDCAL) || (!fSTUDCAL && other.fSTUDCAL)) isequal = false; // one of the two missing
 
   // check TRUs
   if(fTRUArr->GetEntries() != other.fTRUArr->GetEntries()){
@@ -69,4 +72,40 @@ bool AliEMCALTriggerDCSConfig::operator==(const AliEMCALTriggerDCSConfig & other
     }
   }
   return isequal;
+}
+
+bool AliEMCALTriggerDCSConfig::IsTRUEnabled(int itru) const {
+  if(itru < 32){
+    if(fSTUObj) return std::bitset<32>(fSTUObj->GetRegion()).test(itru);
+  } else {
+    if(fSTUDCAL) return std::bitset<32>(fSTUDCAL->GetRegion()).test(itru-32);
+  }
+  return false;
+}
+
+std::ostream &operator<<(std::ostream &stream, const AliEMCALTriggerDCSConfig &config) {
+  stream << "EMCAL trigger DCS config:" << std::endl;
+  stream << "================================" << std::endl;
+  for(int i = 0; i < config.GetTRUArr()->GetEntries(); i++) {
+    AliEMCALTriggerTRUDCSConfig *tru = config.GetTRUDCSConfig(i);
+    stream << "TRU" << i << ": " << *tru << std::endl;
+  }
+  AliEMCALTriggerSTUDCSConfig *emcalstu(config.GetSTUDCSConfig(false)), *dcalstu(config.GetSTUDCSConfig(true));
+  if(emcalstu) std::cout << "EMCAL STU: " << *emcalstu << std::endl;
+  if(dcalstu)  std::cout << "DCAL STU:  " << *dcalstu << std::endl;
+  return stream;
+}
+
+std::string AliEMCALTriggerDCSConfig::ToJSON() const {
+  std::stringstream jsonstring;
+  jsonstring << "{";
+  if(fSTUObj) jsonstring << "\"fSTUObj\":" << fSTUObj->ToJSON() << ",";
+  if(fSTUDCAL) jsonstring << "\"fSTUDCAL\":" << fSTUDCAL->ToJSON() << ",";
+  jsonstring << "fTRUArr:[";
+  for(int ien  = 0; ien < fTRUArr->GetEntries(); ien++){
+    jsonstring << "{\"TRU" << ien << "\":" << static_cast<AliEMCALTriggerTRUDCSConfig *>(fTRUArr->At(ien))->ToJSON() << "}";
+    if(ien != fTRUArr->GetEntries()-1) jsonstring << ",";
+  }
+  jsonstring << "]}";
+  return jsonstring.str();
 }

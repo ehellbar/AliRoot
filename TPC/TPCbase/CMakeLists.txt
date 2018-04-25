@@ -115,8 +115,8 @@ set(SRCS
     AliTPCLookUpTable3DInterpolatorD.cxx
     AliTPCLookUpTable3DInterpolatorIrregularD.cxx
     AliTPCPoissonSolver.cxx
-    AliTPCSpaceCharge3DCalc.cxx
-    AliTPCSpaceCharge3DDriftLine.cxx)
+    AliTPCSpaceCharge3DDriftLine.cxx
+   )
 
 # Headers from sources
 string(REPLACE ".cxx" ".h" HDRS "${SRCS}")

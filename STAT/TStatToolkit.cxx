@@ -431,6 +431,15 @@ TGraphErrors * TStatToolkit::MakeStat1D(TH2 * his, Int_t deltaBin, Double_t frac
     TH1 *projection = his->ProjectionY(name,TMath::Max(jx-deltaBin,1),TMath::Min(jx+deltaBin,nbinx));
     Double_t stat= 0;
     Double_t err =0;
+    if (projection->Integral()==0) {
+      vecX[icount] = xcenter;
+      vecY[icount] = stat;
+      vecYErr[icount] = err;
+      icount++;
+      delete projection;
+      continue;
+    }
+
     TStatToolkit::LTMHisto((TH1F*)projection,vecLTM,fraction);  
     //
     if (returnType==0) {
@@ -464,6 +473,10 @@ TGraphErrors * TStatToolkit::MakeStat1D(TH2 * his, Int_t deltaBin, Double_t frac
       const Int_t    maxBin = projection->GetMaximumBin();
       const Double_t max    = projection->GetXaxis()->GetBinCenter(maxBin);
       const Double_t range  = fraction*(projection->GetXaxis()->GetXmax()-projection->GetXaxis()->GetXmin());
+      f1.SetParameters(projection->GetMaximum(),
+		       projection->GetMean(),
+		       projection->GetRMS());
+      f1.SetRange(max-range, max+range);
       projection->Fit(&f1,"QN","QN", max-range, max+range);
       stat= f1.GetParameter(1);
       err=f1.GetParError(1);
@@ -1014,7 +1027,7 @@ TGraphErrors * TStatToolkit::MakeGraphErrors(TTree * tree, const char * expr, co
   graph->GetXaxis()->SetTitle(charray->At(1)->GetName());
   graph->GetYaxis()->SetTitle(charray->At(0)->GetName());
   THashList * metaData = (THashList*) tree->GetUserInfo()->FindObject("metaTable");
-  if (!metaData == 0){    
+  if ( metaData != NULL){
     TNamed *nmdTitle0 = TStatToolkit::GetMetadata(tree,Form("%s.Title",charray->At(0)->GetName()));
     TNamed *nmdTitle1 = TStatToolkit::GetMetadata(tree,Form("%s.Title",charray->At(1)->GetName()));
     TNamed *nmdYAxis  = TStatToolkit::GetMetadata(tree,Form("%s.AxisTitle",charray->At(0)->GetName()));
@@ -1129,7 +1142,7 @@ TNamed* TStatToolkit::GetMetadata(TTree* tree, const char *varTagName, TString *
           }
         }
       }
-      if (nDots = metaName.CountChar('.')) break;
+      if (nDots == metaName.CountChar('.')) break;
       nDots=metaName.CountChar('.');
     }
   }
@@ -1236,7 +1249,7 @@ TGraph * TStatToolkit::MakeGraphSparse(TTree * tree, const char * expr, const ch
   graphNew->SetTitle(chstring);
 
   THashList * metaData = (THashList*) tree->GetUserInfo()->FindObject("metaTable");
-  if (!metaData == 0){    
+  if (metaData != NULL){
     chstring=expr;
     TObjArray *charray = chstring.Tokenize(":");
     graphNew->GetXaxis()->SetTitle(charray->At(1)->GetName());
@@ -1689,7 +1702,7 @@ void TStatToolkit::MakeAnchorAlias(TTree * tree, TString& sTrendVars, Int_t doCh
     // check individual variables
     for (Int_t ivar=0; ivar<5; ivar++){
       variables[ivar]=descriptor->At(ivar)->GetName();
-      if (doCheck&1>0){  // check input formulas in case specified
+      if ((doCheck&1)>0){  // check input formulas in case specified
         TTreeFormula *form=new TTreeFormula("dummy",descriptor->At(ivar)->GetName(),tree);
         if (form->GetTree()==NULL){
           isOK=kFALSE;
@@ -2277,7 +2290,7 @@ TH1* TStatToolkit::DrawHistogram(TTree * tree, const char* drawCommand, const ch
    }
    THashList * metaData = (THashList*) tree->GetUserInfo()->FindObject("metaTable");
    
-   if (!metaData == 0){    
+   if (metaData != NULL){
     TNamed *nmdTitle0 = TStatToolkit::GetMetadata(tree,Form("%s.Title",charray->At(0)->GetName()));
     TNamed *nmdXAxis  = TStatToolkit::GetMetadata(tree,Form("%s.AxisTitle",charray->At(1)->GetName())); 
     TNamed *nmdTitle1 = TStatToolkit::GetMetadata(tree,Form("%s.Title",charray->At(1)->GetName()));

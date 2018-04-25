@@ -87,9 +87,9 @@ AliFITv7::AliFITv7():  AliFIT(),
   fV0PlusR4(41.3),//From V0A
   fV0PlusR5(72.94),//Computed for z = 325 cm from IP
   fV0PlusR6(72.6),//Needed to compute fV0PlusnMeters
-  fV0PlusSciWd(2.5),//From V0A
+  fV0PlusSciWd(5.),//From V0A
   fV0PlusFraWd(0.2),//From V0A
-  fV0PlusZposition(+325),//Must be changed to specifications from Corrado (meeting 10/11/176)
+  fV0PlusZposition(+318),//Must be changed to specifications from Corrado (meeting 10/11/176)
   fV0PlusnMeters(fV0PlusR6*0.01),//From V0A
   fV0PlusLightYield(93.75),//From V0A
   fV0PlusLightAttenuation(0.05),//From V0A 
@@ -124,9 +124,9 @@ AliFITv7::AliFITv7(const char *name, const char *title):
   fV0PlusR4(41.3),//From V0A
   fV0PlusR5(72.94),//Computed for z = 325 cm from IP
   fV0PlusR6(72.6),//Needed to compute fV0PlusnMeters
-  fV0PlusSciWd(2.5),//From V0A
+  fV0PlusSciWd(5.),//From V0A
   fV0PlusFraWd(0.2),//From V0A
-  fV0PlusZposition(+325),//Must be changed to specifications from Corrado (meeting 10/11/176)
+  fV0PlusZposition(+318),//Must be changed to specifications from Corrado (meeting 10/11/176)
   fV0PlusnMeters(fV0PlusR6*0.01),//From V0A
   fV0PlusLightYield(93.75),//From V0A
   fV0PlusLightAttenuation(0.05),//From V0A 
@@ -157,16 +157,16 @@ void AliFITv7::CreateGeometry()
 
   Int_t *idtmed = fIdtmed->GetArray();
   Float_t zdetC = 85; //center of mother volume
-  Float_t zdetA = 333;
+  Float_t zdetA = 334.5;
   
   Int_t idrotm[999];
   Double_t x,y,z;
   //  Float_t pstartC[3] = {6., 20 ,5};
   //  Float_t pstartA[3] = {2.55, 20 ,5};
   Float_t pstartC[3] = {20, 20 ,5};
-  Float_t pstartA[3] = {20, 20 ,5};
-  Float_t pinstart[3] = {2.95, 2.95, 4.34};
-  Float_t pmcp[3] = {2.949, 2.949, 2.8}; //MCP
+  Float_t pstartA[3] = {20, 20 ,6.3};
+  Float_t pinstart[3] = {2.95, 2.95, 2.5};
+  Float_t pmcp[3] = {2.949, 2.949, 1.}; //MCP
 
   AliMatrix(idrotm[901], 90., 0., 90., 90., 180., 0.);
   
@@ -250,6 +250,18 @@ void AliFITv7::CreateGeometry()
   TGeoVolumeAssembly* stlinA = new TGeoVolumeAssembly("0STL");  // A side mother
   TGeoVolumeAssembly* stlinC = new TGeoVolumeAssembly("0STR");  // C side mother
   //FIT interior
+  // tube inside T0A
+  Float_t pinnertube[3] = {3.95, 4.0, 6.22}; 
+  TVirtualMC::GetMC()->Gsvolu("0TIN","TUBE",idtmed[kAl],pinnertube,3); 
+  TGeoVolume * innertube = gGeoManager->GetVolume("0TIN");
+  stlinA->AddNode(innertube,1,new TGeoTranslation(0,0,0) );
+ // tube around T0A
+  Float_t poutertube[3] = {41, 41.1, 6.54}; 
+  TVirtualMC::GetMC()->Gsvolu("0OUT","TUBE",idtmed[kAl],poutertube,3); 
+  TGeoVolume *outertube = gGeoManager->GetVolume("0OUT");
+   stlinA->AddNode(outertube,1,new TGeoTranslation(0,0,0) );
+ 
+
   TVirtualMC::GetMC()->Gsvolu("0INS","BOX",idtmed[kOpAir],pinstart,3);
   TGeoVolume *ins = gGeoManager->GetVolume("0INS");
   TGeoTranslation *tr[52];
@@ -290,6 +302,7 @@ void AliFITv7::CreateGeometry()
     stlinC->AddNode(ins,itr,ph);
   }
   
+  
   TGeoVolume *alice = gGeoManager->GetVolume("ALIC");
   alice->AddNode(stlinA,1,new TGeoTranslation(0,0, zdetA ) );
   // alice->AddNode(stlinC,1,new TGeoTranslation(0,0, -zdetC ) );
@@ -310,14 +323,18 @@ void AliFITv7::SetOneMCP(TGeoVolume *ins)
   Double_t dP = 3.31735114408; // Work in Progress side length
   
   Int_t *idtmed = fIdtmed->GetArray();
-  Float_t pinstart[3] = {2.95,2.95,4.34};
+  Float_t pinstart[3] = {2.95,2.95,2.5};
   Float_t ptop[3] = {1.324, 1.324, 1.};      // Cherenkov radiator
   Float_t ptopref[3] = {1.3241, 1.3241, 1.}; // Cherenkov radiator wrapped with reflector
   Double_t prfv[3]= {0.0002,1.323, 1.};      // Vertical refracting layer bettwen radiators and between radiator and not optical Air
-  Float_t pmcp[3] = {2.949, 2.949, 2.8};     // MCP
-  Float_t pmcptopglass[3] = {2.949, 2.949, 0.1};     // MCP top glass optical 
-  Float_t preg[3] = {1.324, 1.324, 0.005};   // Photcathode
   Double_t prfh[3]= {1.323,0.0002, 1.};      // Horizontal refracting layer bettwen radiators and ...
+  Float_t pmcp[3] = {2.949, 2.949, 1.};     // MCP
+  Float_t pmcpinner[3] = {2.749, 2.979, 0.1};
+  Float_t pmcpside[3] = {0.1, 2.949, 1};
+  Float_t pmcpbase[3] = {2.949, 2.949, 0.1};
+  Float_t pmcptopglass[3] = {2.949, 2.949, 0.1};     // MCP top glass optical
+ 
+  Float_t preg[3] = {1.324, 1.324, 0.005};   // Photcathode
   Double_t pal[3]= {2.648,2.648, 0.25};      // 5mm Al on top of each radiator
   // Entry window (glass)
   TVirtualMC::GetMC()->Gsvolu("0TOP","BOX",idtmed[kOpGlass],ptop,3); // Glass radiator
@@ -338,7 +355,7 @@ void AliFITv7::SetOneMCP(TGeoVolume *ins)
   //Al housing definition  
   Double_t mgon[16];
 
-  mgon[0]  = -45;
+  mgon[0]  = -45; 
   mgon[1]  = 360.0;
   mgon[2]  = 4;
   mgon[3]  = 4;
@@ -405,21 +422,40 @@ void AliFITv7::SetOneMCP(TGeoVolume *ins)
   ins->AddNode(altop, 1 , new TGeoTranslation(0,0,z) );
   
   // MCP
-
-  TVirtualMC::GetMC()->Gsvolu("0MCP","BOX",idtmed[kAir],pmcp,3); //glass
-  TGeoVolume *mcp = gGeoManager->GetVolume("0MCP");
-  mcp->Print();
-  
-  TVirtualMC::GetMC()->Gsvolu("0MTO", "BOX", idtmed[kOpGlass], pmcptopglass,3);   //Op  Glass
+  TVirtualMC::GetMC()->Gsvolu("0MTO", "BOX", idtmed[kOpGlass], pmcptopglass,3); //Op  Glass
   TGeoVolume *mcptop = gGeoManager->GetVolume("0MTO");
   z = - pinstart[2] + 2*pal[2] + 2*ptopref[2] + pmcptopglass[2];
   ins->AddNode(mcptop, 1, new TGeoTranslation(0,0,z) );
-  //  mcptop->Print();
+
+  TVirtualMC::GetMC()->Gsvolu("0MCP","BOX",idtmed[kAir],pmcp,3); //glass
+  TGeoVolume *mcp = gGeoManager->GetVolume("0MCP");
+  z = -pinstart[2] +  2*pal[2] + 2*ptopref[2] + 2*pmcptopglass[2] + 2* preg[2] + pmcp[2];
+  ins->AddNode(mcp, 1, new TGeoTranslation(0,0,z) );
+  TVirtualMC::GetMC()->Gsvolu("0MIN","BOX",idtmed[kGlass],pmcpinner,3); //glass
+  TGeoVolume *mcpinner = gGeoManager->GetVolume("0MIN");
+  mcp->AddNode(mcpinner,1,new TGeoTranslation(0,0,0) );
   
-  //  z = pinstart[2] -  pmcp[2];
-  //  ins->AddNode(mcp, 1 , new TGeoTranslation(0,0,z) );
+  TVirtualMC::GetMC()->Gsvolu("0MSI","BOX",idtmed[kGlass],pmcpside,3); //glass
+  TGeoVolume *mcpside = gGeoManager->GetVolume("0MSI");
+  x = -pmcp[0] + pmcpside[0];
+  y = -pmcp[1] + pmcpside[1];
+  mcp->AddNode(mcpside,1,new TGeoTranslation(x,y,0) );
+  x = pmcp[0] - pmcpside[0];
+  y = pmcp[1] - pmcpside[1];
+  mcp->AddNode(mcpside,2,new TGeoTranslation(x,y,0) );
+  x = -pmcp[1] + pmcpside[1];
+  y = -pmcp[0] + pmcpside[0];
+  mcp->AddNode(mcpside,3,new TGeoCombiTrans(x,y,0, new TGeoRotation("R2",90,0,0) )) ;
+  x = pmcp[1] - pmcpside[1];
+  y = pmcp[0] - pmcpside[0];
+  mcp->AddNode(mcpside,4,new TGeoCombiTrans(x,y,0, new TGeoRotation("R2",90,0,0) )) ;
   
-  // Al Housing for Support Structure
+  TVirtualMC::GetMC()->Gsvolu("0MBA","BOX",idtmed[kCeramic],pmcpbase,3); //glass
+  TGeoVolume *mcpbase = gGeoManager->GetVolume("0MBA");
+  z = - pinstart[2] + 2*pal[2] + 2*ptopref[2] + pmcptopglass[2] + 2*pmcp[2] + pmcpbase[2];
+  ins->AddNode(mcpbase,1,new TGeoTranslation(0,0,z) );
+  
+   // Al Housing for Support Structure
   //  ins->AddNode(alsup,1);
 }
 //--------------------------------------------------------------------
@@ -838,6 +874,22 @@ void AliFITv7::SetVZEROGeo(TGeoVolume *alice)
  
   TGeoRotation *RotSec16 = new TGeoRotation("RotSec16", 90., 15*22.5, 90., 90.+15*22.5, 0., 0.);
   v0Plus->AddNode(v0PlusSec16,15+1,RotSec16);
+ //alla 
+  //support 
+  //Al front disk
+ Int_t *idtmed = fIdtmed->GetArray();
+ Float_t pv0Alfr [3] = {3.94, 81.6, 0.32};
+  TVirtualMC::GetMC()->Gsvolu("VALF","TUBE",idtmed[kAl],pv0Alfr,3); 
+  TGeoVolume *vAlf = gGeoManager->GetVolume("VALF");
+  Float_t z = -fV0PlusSciWd/2. - pv0Alfr[2] - 0.1;
+  v0Plus->AddNode(vAlf,1,new TGeoTranslation(0, 0, z));
+  //back Al
+  Float_t pv0Albo [3] = {3.94, 40.55, 0.25};
+   TVirtualMC::GetMC()->Gsvolu("VALB","TUBE",idtmed[kAl],pv0Albo,3); 
+  TGeoVolume *v0Alb = gGeoManager->GetVolume("VALB");
+   z = fV0PlusSciWd/2. +  pv0Albo[2] +0.1;
+   v0Plus->AddNode(v0Alb,1,new TGeoTranslation(0, 0, z));
+ 
 
   alice->AddNode(v0Plus,1,new TGeoTranslation(0, 0, fV0PlusZposition));
 }    
@@ -887,18 +939,24 @@ void AliFITv7::CreateMaterials()
   Float_t zglass[2]={14.,8.};
   Float_t wglass[2]={1.,2.};
   Float_t dglass=2.65;
-  // MCP glass SiO2
-  Float_t dglass_mcp=1.3;
+  // Ceramic   97.2% Al2O3 , 2.8% SiO2
+  Float_t aCeramic[2]  = { 26.981539,15.9994 };
+  Float_t zCeramic[2]  = { 13.,8. };
+  Float_t wCeramic[2]  = { 2.,3. };
+  Float_t denscer  = 3.6;
+
   //*** Definition Of avaible T0 materials ***
   AliMixture(1, "Vacuum$", aAir, zAir, dAir1,4,wAir);
   AliMixture(2, "Air$", aAir, zAir, dAir,4,wAir);
-  AliMixture( 4, "MCP glass   $",aglass,zglass,dglass_mcp,-2,wglass);
+  AliMixture( 4, "MCP glass   $",aglass,zglass,dglass,-2,wglass);
   AliMixture( 24, "Radiator Optical glass$",aglass,zglass,dglass,-2,wglass);
+  AliMixture( 3, "Ceramic  $",aCeramic, zCeramic, denscer, -2, wCeramic);
 
   AliMaterial(11, "Aliminium$", 26.98, 13.0, 2.7, 8.9,999); 
  
   AliMedium(1, "Air$", 2, 0, isxfld, sxmgmx, 10., .1, 1., .003, .003);
   AliMedium(3, "Vacuum$", 1, 0, isxfld, sxmgmx, 10., .01, .1, .003, .003);
+  AliMedium(4, "Ceramic$", 3, 0, isxfld, sxmgmx, 10., .01, .1, .003, .003);
   AliMedium(6, "Glass$", 4, 0, isxfld, sxmgmx, 10., .01, .1, .003, .003);
   AliMedium(7, "OpAir$", 2, 0, isxfld, sxmgmx, 10., .1, 1., .003, .003);
   AliMedium(15, "Aluminium$", 11, 0, isxfld, sxmgmx, 10., .01, 1., .003, .003);  

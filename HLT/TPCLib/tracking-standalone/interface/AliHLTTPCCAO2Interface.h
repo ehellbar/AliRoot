@@ -24,16 +24,14 @@ public:
 	void Deinitialize();
 	
 	int RunTracking(const AliHLTTPCCAClusterData* inputClusters, const AliHLTTPCGMMergedTrack* &outputTracks, int &nOutputTracks, const AliHLTTPCGMMergedTrackHit* &outputTrackClusters);
-	int RunTracking(const AliHLTTPCCAClusterData* inputClusters, const AliHLTTPCGMMergedTrack* &outputTracks, int &nOutputTracks, const unsigned int* &outputTrackClusterIDs);
 	void Cleanup();
 	
 	bool GetParamContinuous() {return(fContinuous);}
+	void GetClusterErrors2( int row, float z, float sinPhi, float DzDs, float &ErrY2, float &ErrZ2 ) const;
 
 private:
 	AliHLTTPCCAO2Interface(const AliHLTTPCCAO2Interface&);
 	AliHLTTPCCAO2Interface &operator=( const AliHLTTPCCAO2Interface& );
-	
-	std::vector<unsigned int> fOutputTrackClusterBuffer;
 	
 	bool fInitialized;
 	bool fDumpEvents;

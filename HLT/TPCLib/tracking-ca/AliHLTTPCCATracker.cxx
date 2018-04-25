@@ -296,7 +296,7 @@ void AliHLTTPCCATracker::DumpTrackletHits(std::ostream &out)
 					for (int k = tmpTracklets[i].FirstRow();k <= tmpTracklets[i].LastRow();k++){
 						const int pos = k * nTracklets + j;
 						if (pos < 0 || pos >= HLTCA_GPU_MAX_TRACKLETS * fParam.NRows()){
-							printf("internal error\n");	      
+							printf("internal error: invalid tracklet position k=%d j=%d pos=%d\n", k, j, pos);
 						} else {
 							fTrackletRowHits[pos] = tmpHits[k * nTracklets + i];
 						}
@@ -580,6 +580,7 @@ GPUh() void AliHLTTPCCATracker::DoTracking()
 	StartTimer(6);
 	RunTrackletConstructor();
 	StopTimer(6);
+	if (fGPUDebugLevel >= 3) printf("Slice %d, Number of tracklets: %d\n", fParam.ISlice(), *NTracklets());
 
 	if (fGPUDebugLevel >= 6) DumpTrackletHits(*fGPUDebugOut);
 #ifndef BITWISE_COMPATIBLE_DEBUG_OUTPUT
@@ -591,6 +592,7 @@ GPUh() void AliHLTTPCCATracker::DoTracking()
 	StartTimer(7);
 	RunTrackletSelector();
 	StopTimer(7);
+	if (fGPUDebugLevel >= 3) printf("Slice %d, Number of tracks: %d\n", fParam.ISlice(), *NTracks());
 
 	//std::cout<<"Slice "<<Param().ISlice()<<": N start hits/tracklets/tracks = "<<nStartHits<<" "<<nStartHits<<" "<<*fNTracks<<std::endl;
 
@@ -705,8 +707,14 @@ GPUh() void AliHLTTPCCATracker::WriteOutput()
 			float origY = fClusterData->Y( clusterIndex );
 			float origZ = fClusterData->Z( clusterIndex );      
 			int id = fClusterData->Id( clusterIndex );
+			unsigned char flags = fClusterData->Flags( clusterIndex );
+			unsigned short amp = fClusterData->Amp( clusterIndex );
 			AliHLTTPCCASliceOutCluster c;
-			c.Set( id, iRow, origX, origY, origZ );
+			c.Set( id, iRow, flags, amp, origX, origY, origZ );
+#ifdef GMPropagatePadRowTime
+			c.fPad = fClusterData->GetClusterData( clusterIndex )->fPad;
+			c.fTime = fClusterData->GetClusterData( clusterIndex )->fTime;
+#endif
 			out->SetCluster( nClu, c );
 			nClu++;
 		}
@@ -721,6 +729,7 @@ GPUh() void AliHLTTPCCATracker::WriteOutput()
 	useOutput->SetNTracks( nStoredTracks );
 	useOutput->SetNLocalTracks( nStoredLocalTracks );
 	useOutput->SetNTrackClusters( nStoredHits );
+	if (fGPUDebugLevel >= 3) printf("Slice %d, Output: Tracks %d, local tracks %d, hits %d\n", fParam.ISlice(), nStoredTracks, nStoredLocalTracks, nStoredHits);
 
 	StopTimer(9);
 }
@@ -786,7 +795,7 @@ GPUh() int AliHLTTPCCATracker::PerformGlobalTrackingRun(AliHLTTPCCATracker& slic
 	tParam.SetParam(fTracks[iTrack].Param());
 
 	//printf("Parameters X %f Y %f Z %f SinPhi %f DzDs %f QPt %f SignCosPhi %f\n", tParam.X(), tParam.Y(), tParam.Z(), tParam.SinPhi(), tParam.DzDs(), tParam.QPt(), tParam.SignCosPhi());
-	if (!tParam.Rotate(angle, .999)) return(0);
+	if (!tParam.Rotate(angle, HLTCA_MAX_SIN_PHI)) return(0);
 	//printf("Rotated X %f Y %f Z %f SinPhi %f DzDs %f QPt %f SignCosPhi %f\n", tParam.X(), tParam.Y(), tParam.Z(), tParam.SinPhi(), tParam.DzDs(), tParam.QPt(), tParam.SignCosPhi());
 
 	int maxRowGap = 10;
@@ -794,13 +803,13 @@ GPUh() int AliHLTTPCCATracker::PerformGlobalTrackingRun(AliHLTTPCCATracker& slic
 	do
 	{
 		rowIndex += direction;
-		if (!tParam.TransportToX(sliceNeighbour.Row(rowIndex).X(), t0, fParam.ConstBz(), .999)) return(0); //Reuse t0 linearization until we are in the next sector
+		if (!tParam.TransportToX(sliceNeighbour.Row(rowIndex).X(), t0, fParam.ConstBz(), HLTCA_MAX_SIN_PHI)) return(0); //Reuse t0 linearization until we are in the next sector
 		//printf("Transported X %f Y %f Z %f SinPhi %f DzDs %f QPt %f SignCosPhi %f (MaxY %f)\n", tParam.X(), tParam.Y(), tParam.Z(), tParam.SinPhi(), tParam.DzDs(), tParam.QPt(), tParam.SignCosPhi(), sliceNeighbour.Row(rowIndex).MaxY());
 		if (--maxRowGap == 0) return(0);
 	} while (fabs(tParam.Y()) > sliceNeighbour.Row(rowIndex).MaxY());
 
 	float err2Y, err2Z;
-	GetErrors2( rowIndex, *((MEM_LG2(AliHLTTPCCATrackParam)*) &tParam ), err2Y, err2Z );
+	GetErrors2( rowIndex, tParam.Z(), tParam.SinPhi(), tParam.DzDs(), err2Y, err2Z );
 	if (tParam.GetCov(0) < err2Y) tParam.SetCov(0, err2Y);
 	if (tParam.GetCov(2) < err2Z) tParam.SetCov(2, err2Z);
 
@@ -835,7 +844,7 @@ GPUh() int AliHLTTPCCATracker::PerformGlobalTrackingRun(AliHLTTPCCATracker& slic
 				{
 					//printf("New track: entry %d, row %d, hitindex %d\n", i, rowIndex, sliceNeighbour.fTrackletRowHits[rowIndex * sliceNeighbour.fCommonMem->fNTracklets]);
 					sliceNeighbour.fTrackHits[sliceNeighbour.fCommonMem->fNTrackHits + i].Set(rowIndex, rowHit);
-					//if (i == 0) tParam.TransportToX(sliceNeighbour.Row(rowIndex).X(), fParam.ConstBz(), .999); //Use transport with new linearisation, we have changed the track in between - NOT needed, fitting will always start at outer end of global track!
+					//if (i == 0) tParam.TransportToX(sliceNeighbour.Row(rowIndex).X(), fParam.ConstBz(), HLTCA_MAX_SIN_PHI); //Use transport with new linearisation, we have changed the track in between - NOT needed, fitting will always start at outer end of global track!
 					i++;
 				}
 				rowIndex ++;

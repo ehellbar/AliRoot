@@ -620,7 +620,7 @@ AliESDtrack::AliESDtrack(const AliVTrack *track) :
   // Set ITS cluster map
   fITSClusterMap=track->GetITSClusterMap();
   fITSSharedMap=0;
-
+  fITSchi2=track->GetITSchi2();
   fITSncls=0;
   for(i=0; i<6; i++) {
     if(HasPointOnITSLayer(i)) fITSncls++;
@@ -636,6 +636,20 @@ AliESDtrack::AliESDtrack(const AliVTrack *track) :
   if (bmap) SetTPCFitMap(*bmap);
   bmap = GetTPCSharedMapPtr();
   if (bmap) SetTPCSharedMap(*bmap);
+  // Set TPC chi2
+  fTPCchi2 = track->GetTPCchi2();
+
+  // Impact parameters
+  if (track->InheritsFrom("AliAODTrack")) {
+    Float_t ip[2], ipCov[3];
+    track->GetImpactParameters(ip,ipCov);
+    fD = ip[0];
+    fZ = ip[1];
+    fCdd = ipCov[0];
+    fCdz = ipCov[1];
+    fCzz = ipCov[2];
+  }
+
   //
   // Set the combined PID
   const Double_t *pid = track->PID();

@@ -5,6 +5,7 @@
 
 #include "TObject.h"
 #include <iosfwd>
+#include <string>
 
 class TVector2;
 class TClonesArray;
@@ -80,9 +81,16 @@ public:
    * error counters
    */
   friend std::ostream &operator<<(std::ostream &stream, const AliEMCALTriggerSTUDCSConfig &config);
+
+  /**
+   * @brief Serialize object to JSON format
+   * 
+   * @return JSON-serialized TRU DCS config object 
+   */
+  std::string ToJSON() const;
   
-  void    SetG(Int_t i, Int_t j, Int_t gv) { fG[i][j]    = gv; }
-  void    SetJ(Int_t i, Int_t j, Int_t jv) { fJ[i][j]    = jv; }
+  void    SetG(Int_t vzpar, Int_t ithresh, Int_t val) { fG[vzpar][ithresh]    = val; }
+  void    SetJ(Int_t vzpar, Int_t ithresh, Int_t val) { fJ[vzpar][ithresh]    = val; }
   void    SetRawData(Int_t rd)             { fGetRawData = rd; }
   void    SetRegion(Int_t rg)              { fRegion     = rg; }
   void    SetFw(Int_t fv)                  { fFw         = fv; }
@@ -91,8 +99,8 @@ public:
   void    SetPatchSize(Int_t size)         { fPatchSize =size; }
   void    SetMedianMode(Int_t mode)        { fMedian =mode;    }
   
-  Int_t   GetG(int i, int j) const { return fG[i][j];    }
-  Int_t   GetJ(int i, int j) const { return fJ[i][j];    }
+  Int_t   GetG(int vzpar, int ithresh) const { return fG[vzpar][ithresh];    }
+  Int_t   GetJ(int vzpar, int ithresh) const { return fJ[vzpar][ithresh];    }
   Int_t   GetRawData()       const { return fGetRawData; }
   Int_t   GetRegion()        const { return fRegion;     }
   Int_t   GetFw()            const { return fFw;         }

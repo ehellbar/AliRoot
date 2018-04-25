@@ -20,8 +20,10 @@
 #include "TVector2.h"
 
 // Standard libraries
+#include <bitset>
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 
 /// \cond CLASSIMP
 ClassImp(AliEMCALTriggerSTUDCSConfig) ;
@@ -195,9 +197,26 @@ std::ostream &operator<<(std::ostream &stream, const AliEMCALTriggerSTUDCSConfig
   stream << "Gamma Low:  (" << config.fG[0][1] << ", " << config.fG[1][1] << ", " << config.fG[2][1] << ")" << std::endl;
   stream << "Jet High:   (" << config.fJ[0][0] << ", " << config.fJ[1][0] << ", " << config.fJ[2][0] << ")" << std::endl;
   stream << "Jet Low:    (" << config.fJ[0][1] << ", " << config.fJ[1][1] << ", " << config.fJ[2][1] << ")" << std::endl;
-  stream << "GetRawData: " << config.fGetRawData << ", Region: " << config.fRegion << ", Median: " << config.fMedian 
-         << "Firmware: " << std::hex << config.fFw << std::dec << ", PHOS Scale: ("
-         << config.fPHOSScale[0] << ", " << config.fPHOSScale[1] << ", " << config.fPHOSScale[2] << ", " << config.fPHOSScale[3]
+  stream << "GetRawData: " << config.fGetRawData 
+         << ", Region: " << std::hex << config.fRegion << std::dec << "(" << std::bitset<sizeof(config.fRegion) * 8>(config.fRegion) << ")"
+         << ", Median: " << config.fMedian 
+         << ", Firmware: " << std::hex << config.fFw << std::dec 
+         << ", PHOS Scale: (" << config.fPHOSScale[0] << ", " << config.fPHOSScale[1] << ", " << config.fPHOSScale[2] << ", " << config.fPHOSScale[3]
          << ")" << std::endl;
   return stream;
+}
+
+std::string AliEMCALTriggerSTUDCSConfig::ToJSON() const {
+  std::stringstream jsonstring;
+  jsonstring << "{" 
+             << "\"fG\":[[" << fG[0][0] << "," << fG[1][0] << "," << fG[2][0] << "],[" << fG[0][1] << "," << fG[1][1] << "," << fG[2][1] <<"]],"
+             << "\"fJ\":[[" << fJ[0][0] << "," << fJ[1][0] << "," << fJ[2][0] << "],[" << fJ[0][1] << "," << fJ[1][1] << "," << fJ[2][1] <<"]],"
+             << "\"fRawData\":" << fGetRawData << ","
+             << "\"fRegion\":" << fRegion << ","
+             << "\"fFirmware\":" << fFw << ","
+             << "\"fMedian\":" << fMedian << ","
+             << "\"fPHOSScale\":[" << fPHOSScale[0] << "," << fPHOSScale[1] << "," << fPHOSScale[2] << "," << fPHOSScale[3] << "]"
+             << "}";
+
+  return jsonstring.str();
 }

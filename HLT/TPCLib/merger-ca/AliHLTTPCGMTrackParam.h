@@ -91,18 +91,21 @@ public:
 
   GPUd() void ResetCovariance();
 
-  GPUd() bool CheckNumericalQuality() const ;
+  GPUd() bool CheckNumericalQuality(float overrideCovYY = -1.) const ;
+  GPUd() bool CheckCov() const ;
 
-  GPUd() void Fit
-  (
-   const AliHLTTPCGMPolynomialField* field,
-   AliHLTTPCGMMergedTrackHit* clusters, const AliHLTTPCCAParam &param,
-   int &N, float &Alpha, 
-   bool UseMeanPt = 0,
-   float maxSinPhi = .999
-   );
+  GPUd() bool Fit(const AliHLTTPCGMPolynomialField* field, AliHLTTPCGMMergedTrackHit* clusters, const AliHLTTPCCAParam &param, int &N, int &NTolerated, float &Alpha, int attempt = 0, float maxSinPhi = HLTCA_MAX_SIN_PHI);
+  GPUd() void MarkClusters(AliHLTTPCGMMergedTrackHit* clusters, int ihitFirst, int ihitLast, int wayDirection, unsigned char state)
+  {
+    clusters[ihitFirst].fState |= state; while (ihitFirst != ihitLast) {ihitFirst += wayDirection; clusters[ihitFirst].fState |= state;}
+  }
+  GPUd() void UnmarkClusters(AliHLTTPCGMMergedTrackHit* clusters, int ihitFirst, int ihitLast, int wayDirection, unsigned char state)
+  {
+    clusters[ihitFirst].fState &= ~state; while (ihitFirst != ihitLast) {ihitFirst += wayDirection; clusters[ihitFirst].fState &= ~state;}
+  }
   
-  GPUd() bool Rotate( float alpha, AliHLTTPCGMPhysicalTrackModel &t0, float maxSinPhi = .999 );
+  GPUd() bool Rotate( float alpha );
+  GPUd() void ShiftZ(const AliHLTTPCGMPolynomialField* field, const AliHLTTPCGMMergedTrackHit* clusters, const AliHLTTPCCAParam &param, int N);
 
   GPUd() static float Reciprocal( float x ){ return 1./x; }
   GPUd() static void Assign( float &x, bool mask, float v ){
@@ -116,9 +119,9 @@ public:
   GPUd() static void RefitTrack(AliHLTTPCGMMergedTrack &track, const AliHLTTPCGMPolynomialField* field, AliHLTTPCGMMergedTrackHit* clusters, const AliHLTTPCCAParam& param);
   
   struct AliHLTTPCCAOuterParam {
-      float fX, fAlpha;
-      float fP[5];
-      float fC[15];
+    float fX, fAlpha;
+    float fP[5];
+    float fC[15];
   };
   GPUd() const AliHLTTPCCAOuterParam& OuterParam() const {return fOuterParam;}
 
@@ -126,6 +129,12 @@ public:
   bool GetExtParam( AliExternalTrackParam &T, double alpha ) const;
   void SetExtParam( const AliExternalTrackParam &T );
 #endif
+      
+  GPUd() void ConstrainSinPhi(float limit = HLTCA_MAX_SIN_PHI)
+  {
+    if (fP[2] > limit) fP[2] = limit;
+    else if (fP[2] < -limit) fP[2] = -limit;
+  }
 
   private:
   

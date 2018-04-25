@@ -200,11 +200,6 @@ AliTPC3DCylindricalInterpolatorIrregular::Interpolate3DTableCylIDW(
 Double_t
 AliTPC3DCylindricalInterpolatorIrregular::Distance(Double_t r0, Double_t phi0, Double_t z0, Double_t r, Double_t phi,
                                                    Double_t z) {
-  Double_t x0 = r0 * TMath::Cos(phi0);
-  Double_t y0 = r0 * TMath::Sin(phi0);
-  Double_t x = r * TMath::Cos(phi);
-  Double_t y = r * TMath::Sin(phi);
-
   if (phi < 0) phi = TMath::TwoPi() + phi;
   if (phi > TMath::TwoPi()) phi = phi - TMath::TwoPi();
 
@@ -217,7 +212,9 @@ AliTPC3DCylindricalInterpolatorIrregular::Distance(Double_t r0, Double_t phi0, D
   if (dPhi < -TMath::Pi())
     dPhi = TMath::TwoPi() + dPhi;
 
-  Double_t ret = (r - r0) * (r - r0) + (dPhi * dPhi) * ((r + r0) / 2.0) + (z - z0) * (z - z0);
+
+  Double_t ret = r*r + r0*r0 - 2*r0 * r * TMath::Cos(dPhi) + (z-z0)*(z-z0);
+
   return TMath::Sqrt(ret);
 }
 

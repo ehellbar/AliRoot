@@ -23,10 +23,6 @@ class AliHLTTPCCAClusterData;
 
 class AliHLTTPCCATrackerFramework : AliHLTLogging
 {
-#ifdef HLTCA_STANDALONE
-	friend int DrawGLScene(bool DoAnimation);
-#endif
-
 public:
 	AliHLTTPCCATrackerFramework(int allowGPU = 1, const char* GPU_Library = NULL, int GPUDeviceNum = -1);
 	~AliHLTTPCCATrackerFramework();
@@ -57,13 +53,14 @@ public:
 	void SetKeepData(bool v) {fKeepData = v;}
 
 	AliHLTTPCCAGPUTracker* GetGPUTracker() {return(fGPUTracker);}
+	AliHLTTPCCATracker& CPUTracker(int iSlice) {return(fCPUTrackers[iSlice]);}
 
 private:
   static const int fgkNSlices = 36;       //* N slices
 
-  bool fGPULibAvailable;	//Is the Library with the GPU code available at all?
-  bool fGPUTrackerAvailable; // Is the GPU Tracker Available?
-  bool fUseGPUTracker; // use the GPU tracker 
+  char fGPULibAvailable;	//Is the Library with the GPU code available at all?
+  char fGPUTrackerAvailable; // Is the GPU Tracker Available?
+  char fUseGPUTracker; // use the GPU tracker 
   int fGPUDebugLevel;  // debug level for the GPU code
   AliHLTTPCCAGPUTracker* fGPUTracker;	//Pointer to GPU Tracker Object
   void* fGPULib;		//Pointer to GPU Library
@@ -73,8 +70,8 @@ private:
   AliHLTTPCCATracker fCPUTrackers[fgkNSlices];
   static const int fCPUSliceCount = 36;
 
-  bool fKeepData;		//Keep temporary data and do not free memory imediately, used for Standalone Debug Event Display
-  bool fGlobalTracking;	//Use global tracking
+  char fKeepData;		//Keep temporary data and do not free memory imediately, used for Standalone Debug Event Display
+  char fGlobalTracking;	//Use global tracking
 
   AliHLTTPCCATrackerFramework( const AliHLTTPCCATrackerFramework& );
   AliHLTTPCCATrackerFramework &operator=( const AliHLTTPCCATrackerFramework& );

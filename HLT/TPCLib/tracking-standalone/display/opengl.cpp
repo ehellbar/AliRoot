@@ -87,6 +87,11 @@ int drawGrid = 0;
 int excludeClusters = 0;
 int projectxy = 0;
 
+int markClusters = 0;
+int hideRejectedClusters = 1;
+int hideUnmatchedClusters = 0;
+int hideRejectedTracks = 1;
+
 float Xadd = 0;
 float Zadd = 0;
 
@@ -122,11 +127,9 @@ inline void SetColorGlobalTracks()
 	if (separateGlobalTracks) glColor3f(1., 0.15, 0.15);
 	else glColor3f(1.0, 0.4, 0);
 }
-inline void SetColorFinal()
-{
-	glColor3f(0, 0.7, 0.2);
-}
+inline void SetColorFinal() { glColor3f(0, 0.7, 0.2); }
 inline void SetColorGrid() { glColor3f(0.7, 0.7, 0.0); }
+inline void SetColorMarked() { glColor3f(1.0, 0.0, 0.0); }
 
 void ReSizeGLScene(GLsizei width, GLsizei height) // Resize And Initialize The GL Window
 {
@@ -180,7 +183,7 @@ inline void drawPointLinestrip(int cid, int id, int id_limit = TRACK_TYPE_ID_LIM
 	if (globalPos[cid].w < id_limit) globalPos[cid].w = id;
 }
 
-void DrawClusters(AliHLTTPCCATracker &tracker, int id)
+void DrawClusters(AliHLTTPCCATracker &tracker, int select)
 {
 	glBegin(GL_POINTS);
 	for (int i = 0; i < tracker.Param().NRows(); i++)
@@ -189,7 +192,15 @@ void DrawClusters(AliHLTTPCCATracker &tracker, int id)
 		for (int j = 0; j < row.NHits(); j++)
 		{
 			const int cid = tracker.ClusterData()->Id(tracker.Data().ClusterDataIndex(row, j));
-			if (globalPos[cid].w == id)
+			if (hideUnmatchedClusters && SuppressHit(cid)) continue;
+			bool draw = globalPos[cid].w == select;
+			if (markClusters)
+			{
+				const short flags = tracker.ClusterData()->Flags(tracker.Data().ClusterDataIndex(row, j));
+				const bool match = flags & markClusters;
+				draw = (select == 8) ? (match) : (draw && !match);
+			}
+			if (draw)
 			{
 				glVertex3f(globalPos[cid].x, globalPos[cid].y, projectxy ? 0 : globalPos[cid].z);
 			}
@@ -315,7 +326,7 @@ void DrawFinal(AliHLTTPCCAStandaloneFramework &hlt)
 		if (track.NClusters() == 0) continue;
 		int *clusterused = NULL;
 		int bestk = 0;
-		if (!track.OK()) continue;
+		if (hideRejectedTracks && !track.OK()) continue;
 		glBegin(GL_LINE_STRIP);
 		
 		if (reorderFinalTracks)
@@ -327,7 +338,7 @@ void DrawFinal(AliHLTTPCCAStandaloneFramework &hlt)
 			float smallest = 1e20;
 			for (int k = 0; k < track.NClusters(); k++)
 			{
-				if (merger.Clusters()[track.FirstClusterRef() + k].fState < 0) continue;
+				if (hideRejectedClusters && (merger.Clusters()[track.FirstClusterRef() + k].fState & AliHLTTPCGMMergedTrackHit::flagReject)) continue;
 				int cid = merger.Clusters()[track.FirstClusterRef() + k].fId;
 				float dist = globalPos[cid].x * globalPos[cid].x + globalPos[cid].y * globalPos[cid].y + globalPos[cid].z * globalPos[cid].z;
 				if (dist < smallest)
@@ -336,6 +347,10 @@ void DrawFinal(AliHLTTPCCAStandaloneFramework &hlt)
 					bestk = k;
 				}
 			}
+		}
+		else
+		{
+			while (hideRejectedClusters && (merger.Clusters()[track.FirstClusterRef() + bestk].fState & AliHLTTPCGMMergedTrackHit::flagReject)) bestk++;
 		}
 
 		int lastcid = merger.Clusters()[track.FirstClusterRef() + bestk].fId;
@@ -347,7 +362,7 @@ void DrawFinal(AliHLTTPCCAStandaloneFramework &hlt)
 			drawPointLinestrip(lastcid, 7, SEPERATE_GLOBAL_TRACKS_MAXID);
 		}
 
-		for (int j = 1; j < track.NClusters(); j++)
+		for (int j = (reorderFinalTracks ? 1 : (bestk + 1)); j < track.NClusters(); j++)
 		{
 			int bestcid = 0;
 			if (reorderFinalTracks)
@@ -357,7 +372,7 @@ void DrawFinal(AliHLTTPCCAStandaloneFramework &hlt)
 				for (int k = 0; k < track.NClusters(); k++)
 				{
 					if (clusterused[k]) continue;
-					if (merger.Clusters()[track.FirstClusterRef() + k].fState < 0) continue;
+					if (hideRejectedClusters && (merger.Clusters()[track.FirstClusterRef() + k].fState & AliHLTTPCGMMergedTrackHit::flagReject)) continue;
 					int cid = merger.Clusters()[track.FirstClusterRef() + k].fId;
 					float dist = (globalPos[cid].x - globalPos[lastcid].x) * (globalPos[cid].x - globalPos[lastcid].x) +
 					             (globalPos[cid].y - globalPos[lastcid].y) * (globalPos[cid].y - globalPos[lastcid].y) +
@@ -369,10 +384,11 @@ void DrawFinal(AliHLTTPCCAStandaloneFramework &hlt)
 						bestk = k;
 					}
 				}
+				if (bestdist > 1e19) continue;
 			}
 			else
 			{
-				if (merger.Clusters()[track.FirstClusterRef() + j].fState < 0) continue;
+				if (hideRejectedClusters && (merger.Clusters()[track.FirstClusterRef() + j].fState & AliHLTTPCGMMergedTrackHit::flagReject)) continue;
 				bestcid = merger.Clusters()[track.FirstClusterRef() + j].fId;
 			}
 			if (separateGlobalTracks && !linestarted && globalPos[bestcid].w < SEPERATE_GLOBAL_TRACKS_DISTINGUISH_TYPES)
@@ -454,9 +470,11 @@ int DrawGLScene(bool doAnimation = false) // Here's Where We Do All The Drawing
 	static int framesDone = 0, framesDoneFPS = 0;
 	static HighResTimer timerFPS, timerDisplay;
 
-	static GLuint glDLlines[fgkNSlices][6];
+	constexpr const int N_POINTS_TYPE = 9;
+	constexpr const int N_LINES_TYPE = 6;
+	static GLuint glDLlines[fgkNSlices][N_LINES_TYPE];
 	static GLuint glDLlinesFinal;
-	static GLuint glDLpoints[fgkNSlices][8];
+	static GLuint glDLpoints[fgkNSlices][N_POINTS_TYPE];
 	static GLuint glDLgrid[fgkNSlices];
 	static int glDLcreated = 0;
 
@@ -594,7 +612,7 @@ int DrawGLScene(bool doAnimation = false) // Here's Where We Do All The Drawing
 		currentClusters = 0;
 		for (int iSlice = 0; iSlice < fgkNSlices; iSlice++)
 		{
-			currentClusters += hlt.fTracker.fCPUTrackers[iSlice].NHitsTotal();
+			currentClusters += hlt.Tracker().CPUTracker(iSlice).NHitsTotal();
 		}
 
 		if (maxClusters < currentClusters)
@@ -606,7 +624,7 @@ int DrawGLScene(bool doAnimation = false) // Here's Where We Do All The Drawing
 
 		for (int iSlice = 0; iSlice < fgkNSlices; iSlice++)
 		{
-			const AliHLTTPCCAClusterData &cdata = hlt.fClusterData[iSlice];
+			const AliHLTTPCCAClusterData &cdata = hlt.ClusterData(iSlice);
 			for (int i = 0; i < cdata.NumberOfClusters(); i++)
 			{
 				const int cid = cdata.Id(i);
@@ -616,7 +634,7 @@ int DrawGLScene(bool doAnimation = false) // Here's Where We Do All The Drawing
 					exit(1);
 				}
 				float4 *ptr = &globalPos[cid];
-				hlt.fTracker.fCPUTrackers[iSlice].Param().Slice2Global(cdata.X(i) + Xadd, cdata.Y(i), cdata.Z(i), &ptr->x, &ptr->y, &ptr->z);
+				hlt.Tracker().CPUTracker(iSlice).Param().Slice2Global(cdata.X(i) + Xadd, cdata.Y(i), cdata.Z(i), &ptr->x, &ptr->y, &ptr->z);
 				if (ptr->z >= 0)
 				{
 					ptr->z += Zadd;
@@ -650,17 +668,17 @@ int DrawGLScene(bool doAnimation = false) // Here's Where We Do All The Drawing
 		{
 			if (glDLcreated)
 			{
-				for (int i = 0; i < 6; i++)
+				for (int i = 0; i < N_LINES_TYPE; i++)
 					glDeleteLists(glDLlines[iSlice][i], 1);
-				for (int i = 0; i < 8; i++)
+				for (int i = 0; i < N_POINTS_TYPE; i++)
 					glDeleteLists(glDLpoints[iSlice][i], 1);
 				glDeleteLists(glDLgrid[iSlice], 1);
 			}
 			else
 			{
-				for (int i = 0; i < 6; i++)
+				for (int i = 0; i < N_LINES_TYPE; i++)
 					glDLlines[iSlice][i] = glGenLists(1);
-				for (int i = 0; i < 8; i++)
+				for (int i = 0; i < N_POINTS_TYPE; i++)
 					glDLpoints[iSlice][i] = glGenLists(1);
 				glDLgrid[iSlice] = glGenLists(1);
 			}
@@ -679,7 +697,7 @@ int DrawGLScene(bool doAnimation = false) // Here's Where We Do All The Drawing
 
 		for (int iSlice = 0; iSlice < fgkNSlices; iSlice++)
 		{
-			AliHLTTPCCATracker &tracker = hlt.fTracker.fCPUTrackers[iSlice];
+			AliHLTTPCCATracker &tracker = hlt.Tracker().CPUTracker(iSlice);
 			glNewList(glDLlines[iSlice][0], GL_COMPILE);
 			if (drawInitLinks && iSlice == 0)
 			{
@@ -691,7 +709,7 @@ int DrawGLScene(bool doAnimation = false) // Here's Where We Do All The Drawing
 						printf("Need to set TRACKER_KEEP_TEMPDATA for visualizing PreLinks!\n");
 						break;
 					}
-					AliHLTTPCCATracker &tracker = hlt.fTracker.fCPUTrackers[i];
+					AliHLTTPCCATracker &tracker = hlt.Tracker().CPUTracker(i);
 					tmpMem[i] = tracker.Data().Memory();
 					tracker.SetGPUSliceDataMemory((void *) tracker.fLinkTmpMemory, tracker.Data().Rows());
 					tracker.SetPointersSliceData(tracker.ClusterData());
@@ -733,8 +751,8 @@ int DrawGLScene(bool doAnimation = false) // Here's Where We Do All The Drawing
 
 		for (int iSlice = 0; iSlice < fgkNSlices; iSlice++)
 		{
-			AliHLTTPCCATracker &tracker = hlt.fTracker.fCPUTrackers[iSlice];
-			for (int i = 0; i < 8; i++)
+			AliHLTTPCCATracker &tracker = hlt.Tracker().CPUTracker(iSlice);
+			for (int i = 0; i < N_POINTS_TYPE; i++)
 			{
 				glNewList(glDLpoints[iSlice][i], GL_COMPILE);
 				DrawClusters(tracker, i);
@@ -760,7 +778,8 @@ int DrawGLScene(bool doAnimation = false) // Here's Where We Do All The Drawing
 	if (time > 1.)
 	{
 		float fps = (double) framesDoneFPS / time;
-		printf("FPS: %f (%d frames, Slice: %d, 1:Clusters %d, 2:Prelinks %d, 3:Links %d, 4:Seeds %d, 5:Tracklets %d, 6:Tracks %d, 7:GTracks %d, 8:Merger %d)\n", fps, framesDone, drawSlice, drawClusters, drawInitLinks, drawLinks, drawSeeds, drawTracklets, drawTracks, drawGlobalTracks, drawFinal);
+		printf("FPS: %f (%d frames, Slice: %d, 1:Clusters %d, 2:Prelinks %d, 3:Links %d, 4:Seeds %d, 5:Tracklets %d, 6:Tracks %d, 7:GTracks %d, 8:Merger %d, C:Mark %X)\n",
+			fps, framesDone, drawSlice, drawClusters, drawInitLinks, drawLinks, drawSeeds, drawTracklets, drawTracks, drawGlobalTracks, drawFinal, (int) markClusters);
 		fpsscale = 60 / fps;
 		timerFPS.ResetStart();
 		framesDoneFPS = 0;
@@ -884,6 +903,14 @@ int DrawGLScene(bool doAnimation = false) // Here's Where We Do All The Drawing
 				}
 			}
 			glCallList(glDLlinesFinal);
+		}
+		if (!excludeClusters && markClusters)
+		{
+			SetColorMarked();
+			for (int iSlice = 0; iSlice < fgkNSlices; iSlice++)
+			{
+				glCallList(glDLpoints[iSlice][8]);
+			}
 		}
 	}
 
@@ -1016,7 +1043,11 @@ void PrintHelp()
 	printf("[Y]\t\tStart Animation\n");
 	printf("[G]\t\tDraw Grid\n");
 	printf("[I]\t\tProject onto XY-plane\n");
-	printf("[X]\t\tExclude Clusters used in the tracking steps enabled for visualization ([1]-[8])");
+	printf("[X]\t\tExclude Clusters used in the tracking steps enabled for visualization ([1]-[8])\n");
+	printf("[<]\t\tExclude rejected tracks\n");
+	printf("[C]\t\tMark flagged clusters (splitPad = 0x1, splitTime = 0x2, edge = 0x4, singlePad = 0x8, rejectDistance = 0x10, rejectErr = 0x20\n");
+	printf("[V]\t\tHide rejected clusters from tracks\n");
+	printf("[B]\t\tHide all clusters not belonging or related to matched tracks\n");
 	printf("[1]\t\tShow Clusters\n");
 	printf("[2]\t\tShow Links that were removed\n");
 	printf("[3]\t\tShow Links that remained in Neighbors Cleaner\n");
@@ -1072,6 +1103,23 @@ void HandleKeyRelease(int wParam)
 		reorderFinalTracks ^= 1;
 		updateDLList = true;
 	}
+	else if (wParam == 'C')
+	{
+		if (markClusters == 0) markClusters = 1;
+		else if (markClusters >= 8) markClusters = 0;
+		else markClusters <<= 1;
+		updateDLList = true;
+	}
+	else if (wParam == 'V')
+	{
+		hideRejectedClusters ^= 1;
+		updateDLList = true;
+	}
+	else if (wParam == 'B')
+	{
+		hideUnmatchedClusters ^= 1;
+		updateDLList = true;
+	}
 	else if (wParam == 'I')
 	{
 		updateDLList = true;
@@ -1098,6 +1146,11 @@ void HandleKeyRelease(int wParam)
 
 	else if (wParam == 'G') drawGrid ^= 1;
 	else if (wParam == 'X') excludeClusters ^= 1;
+	else if (wParam == '<')
+	{
+		hideRejectedTracks ^= 1;
+		updateDLList = true;
+	}
 
 	else if (wParam == '1')
 		drawClusters ^= 1;
@@ -1760,6 +1813,7 @@ void *OpenGLMain(void *ptr)
 		int num_ready_fds;
 		struct timeval tv;
 		fd_set in_fds;
+		int waitCount = 0;
 		do
 		{
 			FD_ZERO(&in_fds);
@@ -1774,6 +1828,7 @@ void *OpenGLMain(void *ptr)
 			else if (num_ready_fds > 0) needUpdate = 0;
 			if (buttonPressed == 2) break;
 			if (sendKey) needUpdate = 1;
+			if (waitCount++ != 100) needUpdate = 1;
 		} while (!(num_ready_fds || needUpdate));
 		
 		do
