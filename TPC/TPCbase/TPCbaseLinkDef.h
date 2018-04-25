@@ -167,4 +167,3 @@
 #pragma link C++ class AliTPCChebDist+;       // Wrapper for Chebyshev-parameterized distortions
 
 #endif
-

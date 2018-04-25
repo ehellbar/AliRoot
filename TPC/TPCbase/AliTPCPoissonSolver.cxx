@@ -24,7 +24,6 @@
 /// \date Nov 20, 2017
 
 #include <TMath.h>
-#include "AliLog.h"
 #include <AliSysInfo.h>
 #include "AliTPCPoissonSolver.h"
 

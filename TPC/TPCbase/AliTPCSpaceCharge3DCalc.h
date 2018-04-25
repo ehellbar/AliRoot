@@ -1,5 +1,5 @@
-#ifndef ALI_TPC_SPACECHARGE3DCALC_H
-#define ALI_TPC_SPACECHARGE3DCALC_H
+#ifndef ALI_TPC_SPACECHARGE3D_CALC_H
+#define ALI_TPC_SPACECHARGE3D_CALC_H
 
 
 /* Copyright(c) 1998-1999, ALICE Experiment at CERN, All rights reserved. *
@@ -9,13 +9,13 @@
 
 /// \class AliTPCSpaceCharge3DCalc
 /// \brief This class provides distortion and correction map calculation with integration following electron drift
+/// TODO: validate distortion z by comparing with exisiting classes
 ///
 /// \author Rifki Sadikin <rifki.sadikin@cern.ch>, Indonesian Institute of Sciences
 /// \date Nov 20, 2017
 
-#include "TObject.h"
-#include "TH3F.h"
 #include "TF1.h"
+#include "TH3F.h"
 #include "TMatrixD.h"
 #include "AliTPCPoissonSolver.h"
 #include "AliTPCLookUpTable3DInterpolatorD.h"
@@ -29,11 +29,15 @@ class AliTPCSpaceCharge3DCalc {
 public:
   AliTPCSpaceCharge3DCalc();
   AliTPCSpaceCharge3DCalc(Int_t nRRow, Int_t nZColumn, Int_t nPhiSlice);
-  AliTPCSpaceCharge3DCalc(Int_t nRRow, Int_t nZColumn, Int_t nPhiSlice, Int_t interpolationOrder, Int_t irregularGridSize, Int_t rbfKernelType);
+  AliTPCSpaceCharge3DCalc(Int_t nRRow, Int_t nZColumn, Int_t nPhiSlice,
+                          Int_t interpolationOrder, Int_t irregularGridSize, Int_t rbfKernelType);
   virtual ~AliTPCSpaceCharge3DCalc();
-  void InitSpaceCharge3DPoissonIntegralDz(Int_t nRRow, Int_t nZColumn, Int_t phiSlice, Int_t maxIteration, Double_t stopConvergence);
+  void InitSpaceCharge3DPoissonIntegralDz(Int_t nRRow, Int_t nZColumn, Int_t phiSlice, Int_t maxIteration,
+                                          Double_t stopConvergence);
   void InitSpaceCharge3DPoissonIntegralDz(
     Int_t nRRow, Int_t nZColumn, Int_t phiSlice, Int_t maxIteration, Double_t stopConvergence,
+    TMatrixD **matricesErA, TMatrixD **matricesEphiA, TMatrixD **matricesEzA,
+    TMatrixD **matricesErC, TMatrixD **matricesEphiC, TMatrixD **matricesEzC,
     TMatrixD **matricesDistDrDzA, TMatrixD **matricesDistDPhiRDzA, TMatrixD **matricesDistDzA,
     TMatrixD **matricesCorrDrDzA, TMatrixD **matricesCorrDPhiRDzA, TMatrixD **matricesCorrDzA,
     TMatrixD **matricesDistDrDzC, TMatrixD **matricesDistDPhiRDzC, TMatrixD **matricesDistDzC,
@@ -42,7 +46,8 @@ public:
 
   void
   InitSpaceCharge3DPoisson(Int_t nRRow, Int_t nZColumn, Int_t phiSlice, Int_t maxIteration, Double_t stopConvergence);
-  void ForceInitSpaceCharge3DPoissonIntegralDz(Int_t nRRow, Int_t nZColumn, Int_t phiSlice, Int_t maxIteration, Double_t stopConvergence);
+  void ForceInitSpaceCharge3DPoissonIntegralDz(Int_t nRRow, Int_t nZColumn, Int_t phiSlice, Int_t maxIteration,
+                                               Double_t stopConvergence);
   void GetDistortionCyl(const Float_t x[], Short_t roc, Float_t dx[]);
   void GetDistortionCylAC(const Float_t x[], Short_t roc, Float_t dx[]);
   void GetCorrectionCyl(const Float_t x[], Short_t roc, Float_t dx[]);
@@ -57,8 +62,7 @@ public:
 
   Double_t GetInverseChargeCylAC(const Float_t x[], Short_t roc);
 
-  void SetCorrectionType(Int_t correctionType)
-  {
+  void SetCorrectionType(Int_t correctionType) {
     fCorrectionType = correctionType;
   }
 
@@ -72,21 +76,16 @@ public:
   };
 
   void SetInputSpaceCharge(TH3 *hisSpaceCharge3D, Double_t norm);
-
   void SetInputSpaceCharge(TH3 *hisSpaceCharge3D) { SetInputSpaceCharge(hisSpaceCharge3D, 1); }
-
   void SetInputSpaceCharge(TH3 *hisSpaceCharge3D, Double_t norm, Int_t side);
-
   void SetInputSpaceCharge(TH3 *hisSpaceCharge3D, Int_t side) { SetInputSpaceCharge(hisSpaceCharge3D, 1, side); }
 
-  void SetInputSpaceChargeA(TMatrixD **matricesLookUpCharge)
-  {
+  void SetInputSpaceChargeA(TMatrixD **matricesLookUpCharge) {
     fInterpolatorChargeA->SetValue(matricesLookUpCharge);
     fInterpolatorChargeA->InitCubicSpline();
   }
 
-  void SetInputSpaceChargeC(TMatrixD **matricesLookUpCharge)
-  {
+  void SetInputSpaceChargeC(TMatrixD **matricesLookUpCharge) {
     fInterpolatorChargeC->SetValue(matricesLookUpCharge);
     fInterpolatorChargeC->InitCubicSpline();
   }
@@ -103,10 +102,9 @@ public:
 
   Int_t GetNZColumns() { return fNZColumns; }
 
-  void SetPoissonSolver(AliTPCPoissonSolver *poissonSolver)
-  {
+  void SetPoissonSolver(AliTPCPoissonSolver *poissonSolver) {
     if (fPoissonSolver != NULL) delete fPoissonSolver;
-    fPoissonSolver = poissonSolver;
+    fPoissonSolver= poissonSolver;
   }
 
   AliTPCPoissonSolver *GetPoissonSolver() { return fPoissonSolver; }
@@ -115,8 +113,14 @@ public:
 
   Int_t GetInterpolationOrder() { return fInterpolationOrder; }
 
-  void SetC0C1(Float_t c0, Float_t c1)
-  {
+  void SetOmegaTauT1T2(Float_t omegaTau, Float_t t1, Float_t t2) {
+    const Double_t wt0 = t2 * omegaTau;
+    fC0 = 1. / (1. + wt0 * wt0);
+    const Double_t wt1 = t1 * omegaTau;
+    fC1 = wt1 / (1. + wt1 * wt1);
+  };
+
+  void SetC0C1(Float_t c0, Float_t c1) {
     fC0 = c0;
     fC1 = c1;
   }
@@ -155,9 +159,9 @@ public:
   void GetChargeDensity(TMatrixD **matricesChargeA, TMatrixD **matricesChargeC, TH3 *spaceChargeHistogram3D,
                         const Int_t nRRow, const Int_t nZColumn, const Int_t phiSlice);
 
-  void GetInverseLocalDistortionCylAC(const Float_t x[], Short_t roc, Float_t dx[]);
+  void GetInverseLocalDistortionCyl(const Float_t x[], Short_t roc, Float_t dx[]);
 
-  void GetLocalDistortionCylAC(const Float_t x[], Short_t roc, Float_t dx[]);
+  void GetLocalDistortionCyl(const Float_t x[], Short_t roc, Float_t dx[]);
 
   void SetIrregularGridSize(Int_t size) { fIrregularGridSize = size; }
 
@@ -165,46 +169,50 @@ public:
 
   Int_t GetRBFKernelType() { return fRBFKernelType; }
 
-  void SetPotentialBoundaryAndCharge(TFormula *vTestFunction, TFormula *rhoTestFunction);
+  void SetPotentialBoundaryAndChargeFormula(TFormula *vTestFunction, TFormula *rhoTestFunction);
+  TFormula *GetPotentialVFormula() const { return fFormulaPotentialV; }
+  TFormula *GetChargeRhoFormula() const { return fFormulaChargeRho; }
 
-  void SetBoundaryIFCA(TF1 *f1)
-  {
+  void SetBoundaryIFCA(TF1 *f1) {
     fFormulaBoundaryIFCA = new TF1(*f1);
   }
 
-  void SetBoundaryIFCC(TF1 *f1)
-  {
+  void SetBoundaryIFCC(TF1 *f1) {
     fFormulaBoundaryIFCC = new TF1(*f1);
   }
 
-  void SetBoundaryOFCA(TF1 *f1)
-  {
+  void SetBoundaryOFCA(TF1 *f1) {
     fFormulaBoundaryOFCA = new TF1(*f1);
   }
 
-  void SetBoundaryOFCC(TF1 *f1) { fFormulaBoundaryOFCC = new TF1(*f1); }
+  void SetBoundaryOFCC(TF1 *f1) {
+    fFormulaBoundaryOFCC = new TF1(*f1);
+  }
 
-  void SetBoundaryROCA(TF1 *f1)
-  {
+  void SetBoundaryROCA(TF1 *f1) {
     fFormulaBoundaryROCA = new TF1(*f1);
   }
 
-  void SetBoundaryROCC(TF1 *f1)
-  {
+  void SetBoundaryROCC(TF1 *f1) {
     fFormulaBoundaryROCC = new TF1(*f1);
   }
 
-  void SetBoundaryCE(TF1 *f1)
-  {
+  void SetBoundaryCE(TF1 *f1) {
     fFormulaBoundaryCE = new TF1(*f1);
   }
 
+  void SetElectricFieldFormula(TFormula *formulaEr, TFormula *formulaEPhi, TFormula *formulaEz) {
+    fFormulaEr = formulaEr;
+    fFormulaEPhi = formulaEPhi;
+    fFormulaEz = formulaEz;
+  }
+  TFormula *GetErFormula() const { return fFormulaEr; }
+  TFormula *GetEPhiFormula() const { return fFormulaEPhi; }
+  TFormula *GetEzFormula() const { return fFormulaEz; }
+
   Float_t GetSpaceChargeDensity(Float_t r, Float_t phi, Float_t z);
   Float_t GetPotential(Float_t r, Float_t phi, Float_t z);
-
-protected:
-  TFormula *fFormulaPotentialV = NULL; ///<- potential V(r,rho,z) function
-  TFormula *fFormulaChargeRho = NULL;  ///<- charge density Rho(r,rho,z) function
+  void GetElectricFieldCyl(const Float_t x[], Short_t roc, Double_t dx[]);
 
 private:
   static const Int_t kNMaxPhi = 360;
@@ -301,16 +309,30 @@ private:
   AliTPCLookUpTable3DInterpolatorD *fLookupInverseDistA; //-> look-up table for local distortion (from inverse) side A
   AliTPCLookUpTable3DInterpolatorD *fLookupInverseDistC; //-> look-up table for local distortion (from inverse) side C
 
+
+  AliTPCLookUpTable3DInterpolatorD *fLookupElectricFieldA; //->look-up table for electric field side A
+  AliTPCLookUpTable3DInterpolatorD *fLookupElectricFieldC; //-> look-up table for electric field side C
+
   TH3 *fHistogram3DSpaceCharge;  //-> Histogram with the input space charge histogram - used as an optional input
   TH3 *fHistogram3DSpaceChargeA;  //-> Histogram with the input space charge histogram - used as an optional input side A
   TH3 *fHistogram3DSpaceChargeC;  //-> Histogram with the input space charge histogram - used as an optional input side C
-  TF1 *fFormulaBoundaryIFCA = NULL; //-> function define boundary values for IFC side A V(z) assuming symmetry in phi and r.
-  TF1 *fFormulaBoundaryIFCC = NULL; //-> function define boundary values for IFC side C V(z) assuming symmetry in phi and r.
-  TF1 *fFormulaBoundaryOFCA = NULL; //-> function define boundary values for OFC side A V(z) assuming symmetry in phi and r.
-  TF1 *fFormulaBoundaryOFCC = NULL; ///<- function define boundary values for IFC side C V(z) assuming symmetry in phi and r.
-  TF1 *fFormulaBoundaryROCA = NULL; ///<- function define boundary values for ROC side A V(r) assuming symmetry in phi and z.
-  TF1 *fFormulaBoundaryROCC = NULL; ///<- function define boundary values for ROC side V V(t) assuming symmetry in phi and z.
-  TF1 *fFormulaBoundaryCE = NULL; ///<- function define boundary values for CE V(z) assuming symmetry in phi and z.
+  TF1 *fFormulaBoundaryIFCA; //-> function define boundary values for IFC side A V(z) assuming symmetry in phi and r.
+  TF1 *fFormulaBoundaryIFCC; //-> function define boundary values for IFC side C V(z) assuming symmetry in phi and r.
+  TF1 *fFormulaBoundaryOFCA; //-> function define boundary values for OFC side A V(z) assuming symmetry in phi and r.
+  TF1 *fFormulaBoundaryOFCC; ///<- function define boundary values for IFC side C V(z) assuming symmetry in phi and r.
+  TF1 *fFormulaBoundaryROCA; ///<- function define boundary values for ROC side A V(r) assuming symmetry in phi and z.
+  TF1 *fFormulaBoundaryROCC; ///<- function define boundary values for ROC side V V(t) assuming symmetry in phi and z.
+  TF1 *fFormulaBoundaryCE; ///<- function define boundary values for CE V(z) assuming symmetry in phi and z.
+
+  TFormula *fFormulaPotentialV; ///<- potential V(r,rho,z) function
+  TFormula *fFormulaChargeRho;  ///<- charge density Rho(r,rho,z) function
+
+  // analytic formula for E
+  TFormula *fFormulaEPhi; ///<- ePhi EPhi(r,rho,z) electric field (phi) function
+  TFormula *fFormulaEr; ///<- er Er(r,rho,z) electric field (r) function
+  TFormula *fFormulaEz; ///<- ez Ez(r,rho,z) electric field (z) function
+
+
 
   AliTPCPoissonSolver *fPoissonSolver; //-> Pointer to a poisson solver
 
@@ -381,7 +403,8 @@ private:
   void InitAllocateMemory();
 
 /// \cond CLASSIMP
-ClassDef(AliTPCSpaceCharge3DCalc, 1);
+  ClassDef(AliTPCSpaceCharge3DCalc,
+  1);
 /// \endcond
 };
 

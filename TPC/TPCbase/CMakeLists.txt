@@ -115,6 +115,7 @@ set(SRCS
     AliTPCLookUpTable3DInterpolatorD.cxx
     AliTPCLookUpTable3DInterpolatorIrregularD.cxx
     AliTPCPoissonSolver.cxx
+    AliTPCSpaceCharge3DCalc.cxx
     AliTPCSpaceCharge3DDriftLine.cxx
    )
 

@@ -20,7 +20,7 @@ set(headers
     ../../../STEER/STEERBase/AliSysInfo.h)
 
 # Configure ROOT
-list(APPEND CMAKE_PREFIX_PATH $ENV{ROOTSYS})
+list(APPEND CMAKE_PREFIX_PATH ${ROOTSYS})
 find_package(ROOT REQUIRED)
 include(${ROOT_USE_FILE})
 
