@@ -28,7 +28,7 @@
 class TFormula;
 class AliTPCPoissonSolver;
 
-class AliTPCSpaceCharge3DDriftLine : public AliTPCCorrection, public AliTPCSpaceCharge3DCalc {
+class AliTPCSpaceCharge3DDriftLine : public AliTPCCorrection {
 public:
   AliTPCSpaceCharge3DDriftLine();
   AliTPCSpaceCharge3DDriftLine(const char *name, const char *title);
